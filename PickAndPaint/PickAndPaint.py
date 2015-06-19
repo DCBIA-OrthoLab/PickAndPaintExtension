@@ -675,35 +675,33 @@ class PickAndPaintTest(ScriptedLoadableModuleTest):
         slicer.mrmlScene.Clear(0)
 
     def runTest(self):
-        self.delayDisplay("Starting the test")
-        
-        markupsLogic = slicer.modules.markups.logic()
-        markupsLogic.AddFiducial(58.602, 41.692, 62.569)
-        markupsLogic.AddFiducial(-59.713, -67.347, -19.529)
-        markupsLogic.AddFiducial(-10.573, -3.036, -93.381)
-                                                                     
+        self.setUp()
+        self.delayDisplay(' Starting tests ')
+
         self.delayDisplay(' Test getClosestPointIndex Function ')
-        self.assertTrue( self.testGetClosestPointIndexFunction(markupsLogic) )
+        self.assertTrue(self.testGetClosestPointIndexFunction())
         
         self.delayDisplay(' Test replaceLandmark Function ')
-        self.assertTrue( self.testReplaceLandmarkFunction(markupsLogic) )
-
+        self.assertTrue( self.testReplaceLandmarkFunction() )
 
         self.delayDisplay(' Test DefineNeighbors Function ')
-        self.assertTrue( self.testDefineNeighborsFunction(markupsLogic) )
+        self.assertTrue( self.testDefineNeighborsFunction() )
     
         self.delayDisplay(' Test addArrayFromIdList Function ')
-        self.assertTrue( self.testAddArrayFromIdListFunction(markupsLogic) )
-        
+        self.assertTrue( self.testAddArrayFromIdListFunction() )
+
         self.delayDisplay(' Tests Passed! ')
 
 
-    def testGetClosestPointIndexFunction(self, markupsLogic):
+    def testGetClosestPointIndexFunction(self):
         sphereModel = self.defineSphere()
         slicer.mrmlScene.AddNode(sphereModel)
         closestPointIndexList = list()
         polyData = sphereModel.GetPolyData()
         logic = PickAndPaintLogic()
+        markupsLogic = self.defineMarkupsLogic()
+        
+        
         closestPointIndexList.append(logic.getClosestPointIndex(slicer.mrmlScene.GetNodeByID(markupsLogic.GetActiveListID()),
                                                                 polyData,
                                                                 0))
@@ -718,11 +716,12 @@ class PickAndPaintTest(ScriptedLoadableModuleTest):
             return False
         return True
     
-    def testReplaceLandmarkFunction(self, markupsLogic):
+    def testReplaceLandmarkFunction(self):
         print ' Test replaceLandmark Function '
         logic = PickAndPaintLogic()
         sphereModel = self.defineSphere()
         polyData = sphereModel.GetPolyData()
+        markupsLogic = self.defineMarkupsLogic()
         listCoordinates = list()
         listCoordinates.append([55.28383255004883, 55.28383255004883, 62.34897994995117])
         listCoordinates.append([-68.93781280517578, -68.93781280517578, -22.252094268798828])
@@ -741,11 +740,12 @@ class PickAndPaintTest(ScriptedLoadableModuleTest):
                 print i, ' - Passed! '
         return True
 
-    def testDefineNeighborsFunction(self, markupsLogic):
+    def testDefineNeighborsFunction(self):
         print ' Test DefineNeighbors Function '
         logic = PickAndPaintLogic()
         sphereModel = self.defineSphere()
         polyData = sphereModel.GetPolyData()
+        markupsLogic = self.defineMarkupsLogic()
         closestPointIndexList = [9, 35, 1]
         connectedVerticesReferenceList = list()
         connectedVerticesReferenceList.append([9, 2, 3, 8, 10, 15, 16])
@@ -762,17 +762,17 @@ class PickAndPaintTest(ScriptedLoadableModuleTest):
                 list1.append(int(connectedVerticesTestedList[i].GetId(j)))
             connectedVerticesTestedList[i] = list1
             if connectedVerticesTestedList[i] != connectedVerticesReferenceList[i]:
-                print i, " - Failed! "
+                print i, ' - Failed! '
                 return False
             else:
-                print i, " - Passed! "
-    
+                print i, ' - Passed! '
         return True
         
-    def testAddArrayFromIdListFunction(self, markupsLogic):
+    def testAddArrayFromIdListFunction(self):
         print ' Test AddArrayFromIdList Function '
         logic = PickAndPaintLogic()
         sphereModel = self.defineSphere()
+        markupsLogic = self.defineMarkupsLogic()
         polyData = sphereModel.GetPolyData()
         closestPointIndexList = [9, 35, 1]
         for i in range(0, slicer.mrmlScene.GetNodeByID(markupsLogic.GetActiveListID()).GetNumberOfFiducials()):
@@ -795,5 +795,13 @@ class PickAndPaintTest(ScriptedLoadableModuleTest):
         model.SetAndObserveDisplayNodeID(modelDisplay.GetID())
         modelDisplay.SetInputPolyDataConnection(sphereSource.GetOutputPort())
         return model
+    
+    def defineMarkupsLogic(self):
+        slicer.mrmlScene.Clear(0)
+        markupsLogic = slicer.modules.markups.logic()
+        markupsLogic.AddFiducial(58.602, 41.692, 62.569)
+        markupsLogic.AddFiducial(-59.713, -67.347, -19.529)
+        markupsLogic.AddFiducial(-10.573, -3.036, -93.381)
+        return markupsLogic
 
 
