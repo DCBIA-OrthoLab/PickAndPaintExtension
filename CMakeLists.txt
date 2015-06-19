@@ -7,7 +7,7 @@ project(PickAndPaintExtension)
 set(EXTENSION_HOMEPAGE "http://www.example.com/Slicer/Extensions/PickAndPaintExtension")
 set(EXTENSION_CATEGORY "Shape Analysis")
 set(EXTENSION_CONTRIBUTORS "Lucie Macron (University of Michigan)")
-set(EXTENSION_DESCRIPTION "This is an example of a simple extension")
+set(EXTENSION_DESCRIPTION "Pick 'n Paint tool allows users to select ROIs on a reference model and to propagate it over different time point models.")
 set(EXTENSION_ICONURL "http://www.example.com/Slicer/Extensions/PickAndPaintExtension.png")
 set(EXTENSION_SCREENSHOTURLS "http://www.example.com/Slicer/Extensions/PickAndPaintExtension/Screenshots/1.png")
 
