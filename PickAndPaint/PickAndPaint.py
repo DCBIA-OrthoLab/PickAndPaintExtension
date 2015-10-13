@@ -10,7 +10,7 @@ class PickAndPaint(ScriptedLoadableModule):
         parent.title = "Pick 'n Paint "
         parent.categories = ["Shape Analysis"]
         parent.dependencies = []
-        parent.contributors = ["Lucie Macron (University of Michigan)"]
+        parent.contributors = ["Lucie Macron (University of Michigan), Jean-Baptiste Vimort (University of Michigan)"]
         parent.helpText = """
         Pick 'n Paint tool allows users to select ROIs on a reference model and to propagate it over different time point models.
         """
@@ -33,14 +33,14 @@ class PickAndPaintWidget(ScriptedLoadableModuleWidget):
 
     class inputState (object):
         def __init__(self):
-            self.inputModelNode = None
             self.fidNodeID = None
+            self.hardenModelID = None
+            self.ModelModifieTagEvent = None
             self.MarkupAddedEventTag = None
             self.PointModifiedEventTag = None
             self.cleanBool = False # if the mesh is cleaned, all the propagated one will be too !
             self.dictionaryLandmark = dict()  # Key: ID of markups
                                               # Value: landmarkState object
-            self.dictionaryLandmark.clear()
             # ------------------------- PROPAGATION ------------------------
             self.modelsToPropList = list() # contains ID of Propagated Model Node
             self.propagationType = 0  #  Type of propagation
@@ -54,15 +54,12 @@ class PickAndPaintWidget(ScriptedLoadableModuleWidget):
         #                                   Global Variables
         # ------------------------------------------------------------------------------------
         self.logic = PickAndPaintLogic()
+        self.previousModel = None
         self.dictionaryInput = dict() # key: ID of the model set as reference
                                       # value: inputState object.
-        self.dictionaryInput.clear()
         #-------------------------------------------------------------------------------------
         # Interaction with 3D Scene
-        selectionNode = slicer.mrmlScene.GetNodeByID("vtkMRMLSelectionNodeSingleton")
-        selectionNode.SetReferenceActivePlaceNodeClassName("vtkMRMLMarkupsFiducialNode")
         self.interactionNode = slicer.mrmlScene.GetNodeByID("vtkMRMLInteractionNodeSingleton")
-        
         # ------------------------------------------------------------------------------------
         #                                    Input Selection
         # ------------------------------------------------------------------------------------
@@ -194,12 +191,18 @@ class PickAndPaintWidget(ScriptedLoadableModuleWidget):
         self.propagationInputComboBox.connect('checkedNodesChanged()', self.onPropagationInputComboBoxCheckedNodesChanged)
         self.propagateButton.connect('clicked()', self.onPropagateButton)
 
-        def onCloseScene(obj, event):
-            # initialize Parameters
-            globals()["PickAndPaint"] = slicer.util.reloadScriptedModule("PickAndPaint")
-        slicer.mrmlScene.AddObserver(slicer.mrmlScene.EndCloseEvent, onCloseScene)
 
+        slicer.mrmlScene.AddObserver(slicer.mrmlScene.EndCloseEvent, self.onCloseScene)
 
+    def onCloseScene(self, obj, event):
+        dict = self.dictionaryInput
+        if self.previousModel:
+            model = self.previousModel
+            model.RemoveObserver(dict[fixedModel.GetID()].ModelModifieTagEvent)
+        dict.clear()
+        self.radiusDefinitionWidget = 0.0
+        self.landmarksScaleWidget = 2.0
+        self.landmarkComboBoxROI = None
 
     def UpdateInterface(self):
         if self.inputModelSelector.currentNode():
@@ -226,10 +229,20 @@ class PickAndPaintWidget(ScriptedLoadableModuleWidget):
                                             self.landmarkComboBoxROI.currentText,
                                             "UpdateInterface")
 
+    def onModelModified(self, obj, event):
+        hardenModel = self.logic.createIntermediateHardenModel(obj)
+        self.dictionaryInput[obj.GetID()].hardenModelID = hardenModel.GetID()
+
     def onCurrentNodeChanged(self):
+        if not self.inputModelSelector:
+            return
         if self.inputModelSelector.currentNode():
-            activeInputID = self.inputModelSelector.currentNode().GetID()
+            inputModel = self.inputModelSelector.currentNode()
+            activeInputID = inputModel.GetID()
             if activeInputID:
+                if self.previousModel:
+                    model = self.previousModel
+                    model.RemoveObserver(self.logic.dictionaryInput[model.GetID()].ModelModifieTagEvent)
                 if not self.dictionaryInput.has_key(activeInputID):
                     # Add the new input on the dictionary
                     self.dictionaryInput[activeInputID] = self.inputState()
@@ -244,6 +257,14 @@ class PickAndPaintWidget(ScriptedLoadableModuleWidget):
                     # Key already exists -> Set the markupsList associated to that model active!
                     slicer.modules.markups.logic().SetActiveListID(slicer.mrmlScene.GetNodeByID(self.dictionaryInput[activeInputID].fidNodeID))
                 
+                # Create the harden model usefull for all fiducial's interactions and the computation of the transforms
+                hardenModel = self.logic.createIntermediateHardenModel(inputModel)
+                self.dictionaryInput[activeInputID].hardenModelID = hardenModel.GetID()
+                # Create an observer on the model in case tha one other module modify it
+                self.dictionaryInput[inputModel.GetID()].ModelModifieTagEvent = \
+                    inputModel.AddObserver(inputModel.TransformModifiedEvent, self.onModelModified)
+
+
                 # Update landmark ComboBox by adding the labels of landmarks associated to that model
                 fidNode = slicer.app.mrmlScene().GetNodeByID(self.dictionaryInput[activeInputID].fidNodeID)
                 if fidNode:
@@ -266,6 +287,10 @@ class PickAndPaintWidget(ScriptedLoadableModuleWidget):
     def onAddButton(self):
         # Add fiducial on the scene.
         # If no input model selected, the addition of fiducial shouldn't be possible.
+        selectionNode = slicer.mrmlScene.GetNodeByID("vtkMRMLSelectionNodeSingleton")
+        selectionNode.SetReferenceActivePlaceNodeClassName("vtkMRMLMarkupsFiducialNode")
+        if not self.inputModelSelector:
+            return
         if self.inputModelSelector.currentNode():
             self.interactionNode.SetCurrentInteractionMode(1)
         else:
@@ -292,7 +317,10 @@ class PickAndPaintWidget(ScriptedLoadableModuleWidget):
                 self.dictionaryInput[activeInput.GetID()].cleanBool = True
 
                 # Clean the mesh with vtkCleanPolyData cleaner and vtkTriangleFilter:
+                hardenModel = slicer.app.mrmlScene().GetNodeByID(
+                    self.dictionaryInput[activeInput.GetID()].hardenModelID)
                 self.logic.cleanerAndTriangleFilter(activeInput)
+                self.logic.cleanerAndTriangleFilter(hardenModel)
 
                 # Define the new ROI:
                 fidNode = slicer.app.mrmlScene().GetNodeByID(self.dictionaryInput[activeInput.GetID()].fidNodeID)
@@ -301,8 +329,10 @@ class PickAndPaintWidget(ScriptedLoadableModuleWidget):
                 if selectedLandmarkID != False:
                     activeLandmarkState = self.dictionaryInput[activeInput.GetID()].dictionaryLandmark[selectedLandmarkID]
                     markupsIndex = fidNode.GetMarkupIndexByID(selectedLandmarkID)
+                    hardenModel = slicer.app.mrmlScene().GetNodeByID(
+                        self.dictionaryInput[activeInput.GetID()].hardenModelID)
                     activeLandmarkState.indexClosestPoint = self.logic.getClosestPointIndex(fidNode,
-                                                                                            slicer.util.getNode(activeInput.GetID()).GetPolyData(),
+                                                                                            hardenModel.GetPolyData(),
                                                                                             markupsIndex)
                 self.onRadiusValueChanged()
         else:
@@ -313,6 +343,8 @@ class PickAndPaintWidget(ScriptedLoadableModuleWidget):
 
 
     def onLandmarksScaleChanged(self):
+        if not self.inputModelSelector:
+            return
         if self.inputModelSelector.currentNode():
             activeInput = self.inputModelSelector.currentNode()
             fidNode = slicer.app.mrmlScene().GetNodeByID(self.dictionaryInput[activeInput.GetID()].fidNodeID)
@@ -333,7 +365,7 @@ class PickAndPaintWidget(ScriptedLoadableModuleWidget):
         print " ------------------------------------ onSurfaceDeplacementStateChanged ------------------------------------"
         if self.inputModelSelector.currentNode():
             activeInput = self.inputModelSelector.currentNode()
-            fidNode = slicer.app.mrmlScene().GetNodeByID(self.dictionaryInput[activeInput.GetID()].fidNodeID)
+            fidNode = slicer.app.mrmlScene().GetNodeByID(self.dictionaryInput[activeInput.GetID()].hardenModelID)
 
             selectedFidReflID = self.logic.findIDFromLabel(self.dictionaryInput[activeInput.GetID()].dictionaryLandmark,
                                                            self.landmarkComboBoxROI.currentText)
@@ -343,10 +375,12 @@ class PickAndPaintWidget(ScriptedLoadableModuleWidget):
                     for key, value in self.dictionaryInput[activeInput.GetID()].dictionaryLandmark.iteritems():
                         markupsIndex = fidNode.GetMarkupIndexByID(key)
                         if value.mouvementSurfaceStatus:
+                           hardenModel = slicer.app.mrmlScene().GetNodeByID(
+                               self.dictionaryInput[activeInput.GetID()].hardenModelID)
                            value.indexClosestPoint = self.logic.getClosestPointIndex(fidNode,
-                                                                                     slicer.util.getNode(activeInput.GetID()).GetPolyData(),
+                                                                                     hardenModel.GetPolyData(),
                                                                                      markupsIndex)
-                           self.logic.replaceLandmark(slicer.util.getNode(activeInput.GetID()).GetPolyData(),
+                           self.logic.replaceLandmark(hardenModel.GetPolyData(),
                                                       fidNode,
                                                       markupsIndex,
                                                       value.indexClosestPoint)
@@ -373,7 +407,9 @@ class PickAndPaintWidget(ScriptedLoadableModuleWidget):
 
                 self.radiusDefinitionWidget.setEnabled(False)
 
-                listID = self.logic.defineNeighbor(activeInput.GetPolyData(),
+                hardenModel = slicer.app.mrmlScene().GetNodeByID(
+                    self.dictionaryInput[activeInput.GetID()].hardenModelID)
+                listID = self.logic.defineNeighbor(hardenModel.GetPolyData(),
                                                    activeLandmarkState.indexClosestPoint,
                                                    activeLandmarkState.radiusROI)
                 self.logic.addArrayFromIdList(listID, activeInput.GetPolyData(), activeLandmarkState.arrayName)
@@ -424,7 +460,10 @@ class PickAndPaintWidget(ScriptedLoadableModuleWidget):
                         print IDModel
                         model = slicer.mrmlScene.GetNodeByID(IDModel)
                         if self.dictionaryInput[activeInput.GetID()].cleanBool:
+                            hardenModel = slicer.app.mrmlScene().GetNodeByID(
+                                 self.dictionaryInput[activeInput.GetID()].hardenModelID)
                             self.logic.cleanerAndTriangleFilter(model)
+                            self.logic.cleanerAndTriangleFilter(hardenModel)
                         self.logic.propagateCorrespondent(activeInput, model, arrayName)
             else:
                 self.dictionaryInput[activeInput.GetID()].propagationType = 2
@@ -433,7 +472,10 @@ class PickAndPaintWidget(ScriptedLoadableModuleWidget):
                     for IDModel in self.dictionaryInput[activeInput.GetID()].modelsToPropList:
                         model = slicer.mrmlScene.GetNodeByID(IDModel)
                         if self.dictionaryInput[activeInput.GetID()].cleanBool:
+                            hardenModel = slicer.app.mrmlScene().GetNodeByID(
+                                 self.dictionaryInput[activeInput.GetID()].hardenModelID)
                             self.logic.cleanerAndTriangleFilter(model)
+                            self.logic.cleanerAndTriangleFilter(hardenModel)
                         self.logic.propagateNonCorrespondent(self.dictionaryInput[activeInput.GetID()].fidNodeID,
                                                              landmarkID,
                                                              landmarkState,
@@ -472,17 +514,21 @@ class PickAndPaintWidget(ScriptedLoadableModuleWidget):
                 activeLandmarkState = self.dictionaryInput[activeInput.GetID()].dictionaryLandmark[selectedLandmarkID]
                 markupsIndex = fidNode.GetMarkupIndexByID(selectedLandmarkID)
                 if activeLandmarkState.mouvementSurfaceStatus:
+                    hardenModel = slicer.app.mrmlScene().GetNodeByID(
+                        self.dictionaryInput[activeInput.GetID()].hardenModelID)
                     activeLandmarkState.indexClosestPoint = self.logic.getClosestPointIndex(fidNode,
-                                                                                            slicer.util.getNode(activeInput.GetID()).GetPolyData(),
+                                                                                            hardenModel.GetPolyData(),
                                                                                             markupsIndex)
-                    self.logic.replaceLandmark(slicer.util.getNode(activeInput.GetID()).GetPolyData(),
+                    self.logic.replaceLandmark(hardenModel.GetPolyData(),
                                                fidNode,
                                                markupsIndex,
                                                activeLandmarkState.indexClosestPoint)
 
                 # Moving the region if we move the landmark
                 if activeLandmarkState.radiusROI > 0 and activeLandmarkState.radiusROI != 0:
-                    listID = self.logic.defineNeighbor(activeInput.GetPolyData(),
+                    hardenModel = slicer.app.mrmlScene().GetNodeByID(
+                        self.dictionaryInput[activeInput.GetID()].hardenModelID)
+                    listID = self.logic.defineNeighbor(hardenModel.GetPolyData(),
                                                        activeLandmarkState.indexClosestPoint,
                                                        activeLandmarkState.radiusROI)
                     self.logic.addArrayFromIdList(listID, activeInput.GetPolyData(), activeLandmarkState.arrayName)
@@ -669,6 +715,23 @@ class PickAndPaintLogic(ScriptedLoadableModuleLogic):
         self.addArrayFromIdList(listID, propagatedInput.GetPolyData(), landmarkState.arrayName)
         self.displayROI(propagatedInput, landmarkState.arrayName)
 
+    def createIntermediateHardenModel(self, model):
+        hardenModel = slicer.mrmlScene.GetNodesByName("SurfaceRegistration_" + model.GetName() + "_hardenCopy_" + str(
+            slicer.app.applicationPid())).GetItemAsObject(0)
+        if hardenModel is None:
+            hardenModel = slicer.vtkMRMLModelNode()
+        hardenPolyData = vtk.vtkPolyData()
+        hardenPolyData.DeepCopy(model.GetPolyData())
+        hardenModel.SetAndObservePolyData(hardenPolyData)
+        hardenModel.SetName(
+            "SurfaceRegistration_" + model.GetName() + "_hardenCopy_" + str(slicer.app.applicationPid()))
+        if model.GetParentTransformNode():
+            hardenModel.SetAndObserveTransformNodeID(model.GetParentTransformNode().GetID())
+        hardenModel.HideFromEditorsOn()
+        slicer.mrmlScene.AddNode(hardenModel)
+        logic = slicer.vtkSlicerTransformLogic()
+        logic.hardenTransform(hardenModel)
+        return hardenModel
 
 class PickAndPaintTest(ScriptedLoadableModuleTest):
     def setUp(self):
