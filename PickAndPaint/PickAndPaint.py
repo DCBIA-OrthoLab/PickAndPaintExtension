@@ -229,9 +229,26 @@ class PickAndPaintWidget(ScriptedLoadableModuleWidget):
                                             self.landmarkComboBoxROI.currentText,
                                             "UpdateInterface")
 
+    def landmarksFollowModel(self, modelID):
+        if not modelID:
+            return
+        fidNodeID = self.dictionaryInput[modelID].fidNodeID
+        if not fidNodeID:
+            return
+        fidNode = slicer.app.mrmlScene().GetNodeByID(fidNodeID)
+        dictLandmark = self.dictionaryInput[modelID].dictionaryLandmark
+        hardenModel = slicer.app.mrmlScene().GetNodeByID(
+                        self.dictionaryInput[modelID].hardenModelID)
+        for key in dictLandmark:
+            value = dictLandmark[key]
+            if value.mouvementSurfaceStatus:
+                markupsIndex = fidNode.GetMarkupIndexByID(key)
+                self.logic.replaceLandmark(hardenModel.GetPolyData(), fidNode, markupsIndex, value.indexClosestPoint)
+
     def onModelModified(self, obj, event):
         hardenModel = self.logic.createIntermediateHardenModel(obj)
         self.dictionaryInput[obj.GetID()].hardenModelID = hardenModel.GetID()
+        self.landmarksFollowModel(obj.GetID())
 
     def onCurrentNodeChanged(self):
         if not self.inputModelSelector:
