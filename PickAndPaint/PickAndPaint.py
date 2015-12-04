@@ -372,9 +372,9 @@ class PickAndPaintWidget(ScriptedLoadableModuleWidget):
         modelToPropagateList = self.logic.decodeJSON(fidList.GetAttribute("modelToPropList"))["modelToPropList"]
         for IDmodelToPropagate in modelToPropagateList:
             modelToPropagate = slicer.mrmlScene.GetNodeByID(IDmodelToPropagate)
-            isClean = fidList.GetAttribute("isClean")
+            isClean = self.logic.decodeJSON(fidList.GetAttribute("isClean"))
             if isClean:
-                if isClean[0]:
+                if isClean["isClean"]:
                     self.logic.cleanerAndTriangleFilter(modelToPropagate)
                     hardenModel = self.logic.createIntermediateHardenModel(modelToPropagate)
                     modelToPropagate.SetAttribute("hardenModelID",hardenModel.GetID())
@@ -538,7 +538,7 @@ class PickAndPaintLogic(ScriptedLoadableModuleLogic):
         landmarks.SetAttribute("landmarkDescription",self.encodeJSON(landmarkDescription))
         planeDescription = dict()
         landmarks.SetAttribute("planeDescription",self.encodeJSON(planeDescription))
-        landmarks.SetAttribute("isClean",self.encodeJSON({"isClean":True}))
+        landmarks.SetAttribute("isClean",self.encodeJSON({"isClean":False}))
         landmarks.SetAttribute("lastTransformID",None)
         landmarks.SetAttribute("arrayName",model.GetName() + "_ROI")
 
@@ -557,6 +557,7 @@ class PickAndPaintLogic(ScriptedLoadableModuleLogic):
                 landmarkDescription[markupID]["projection"]["isProjected"] = False
                 landmarkDescription[markupID]["projection"]["closestPointIndex"] = None
             landmarks.SetAttribute("landmarkDescription",self.encodeJSON(landmarkDescription))
+        landmarks.SetAttribute("isClean",self.encodeJSON({"isClean":False}))
 
     def connectLandmarks(self, modelSelector, landmarkSelector, onSurface):
         model = modelSelector.currentNode()
@@ -737,6 +738,8 @@ class PickAndPaintLogic(ScriptedLoadableModuleLogic):
         return connectedVerticesIDList
 
     def addArrayFromIdList(self, connectedIdList, inputModelNode, arrayName):
+        if not inputModelNode:
+            return
         inputModelNodePolydata = inputModelNode.GetPolyData()
         pointData = inputModelNodePolydata.GetPointData()
         numberofIds = connectedIdList.GetNumberOfIds()
@@ -834,6 +837,7 @@ class PickAndPaintLogic(ScriptedLoadableModuleLogic):
             return
 
     def propagateNonCorrespondent(self, fidList, modelToPropagate):
+        print modelToPropagate.GetAttribute("hardenModelID")
         hardenModel = slicer.app.mrmlScene().GetNodeByID(modelToPropagate.GetAttribute("hardenModelID"))
         landmarkDescription = self.decodeJSON(fidList.GetAttribute("landmarkDescription"))
         arrayName = fidList.GetAttribute("arrayName")
