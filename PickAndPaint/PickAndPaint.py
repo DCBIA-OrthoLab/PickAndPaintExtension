@@ -427,7 +427,7 @@ class PickAndPaintLogic(ScriptedLoadableModuleLogic):
         logic = slicer.vtkSlicerTransformLogic()
         logic.hardenTransform(hardenModel)
         return hardenModel
-    
+
     def onModelModified(self, obj, event):
         #recompute the harden model
         hardenModel = self.createIntermediateHardenModel(obj)
@@ -532,6 +532,7 @@ class PickAndPaintLogic(ScriptedLoadableModuleLogic):
                 landmarkDescription[markupID]["projection"]["isProjected"] = False
                 landmarkDescription[markupID]["projection"]["closestPointIndex"] = None
             landmarkDescription[markupID]["midPoint"] = dict()
+            landmarkDescription[markupID]["midPoint"]["definedByThisMarkup"] = list()
             landmarkDescription[markupID]["midPoint"]["isMidPoint"] = False
             landmarkDescription[markupID]["midPoint"]["Point1"] = None
             landmarkDescription[markupID]["midPoint"]["Point2"] = None
@@ -623,6 +624,7 @@ class PickAndPaintLogic(ScriptedLoadableModuleLogic):
         landmarkDescription[markupID]["projection"]["isProjected"] = True
         # The landmark will be projected by onPointModifiedEvent
         landmarkDescription[markupID]["midPoint"] = dict()
+        landmarkDescription[markupID]["midPoint"]["definedByThisMarkup"] = list()
         landmarkDescription[markupID]["midPoint"]["isMidPoint"] = False
         landmarkDescription[markupID]["midPoint"]["Point1"] = None
         landmarkDescription[markupID]["midPoint"]["Point2"] = None
@@ -631,9 +633,39 @@ class PickAndPaintLogic(ScriptedLoadableModuleLogic):
         self.interface.landmarkComboBox.setCurrentIndex(self.interface.landmarkComboBox.count - 1)
         self.interface.UpdateInterface()
 
+    def calculateMidPointCoord(self, fidList, landmark1ID, landmark2ID):
+        """Set the midpoint when you know the the mrml nodes"""
+        landmark1Index = fidList.GetMarkupIndexByID(landmark1ID)
+        landmark2Index = fidList.GetMarkupIndexByID(landmark2ID)
+        coord1 = [-1, -1, -1]
+        coord2 = [-1, -1, -1]
+        fidList.GetNthFiducialPosition(landmark1Index, coord1)
+        fidList.GetNthFiducialPosition(landmark2Index, coord2)
+        midCoord = [-1, -1, -1]
+        midCoord[0] = (coord1[0] + coord2[0])/2
+        midCoord[1] = (coord1[1] + coord2[1])/2
+        midCoord[2] = (coord1[2] + coord2[2])/2
+        return midCoord
+
+    def updateMidPoint(self, fidList, landmarkID):
+        landmarkDescription = self.decodeJSON(fidList.GetAttribute("landmarkDescription"))
+        for midPointID in landmarkDescription[landmarkID]["midPoint"]["definedByThisMarkup"]:
+            if landmarkDescription[midPointID]["midPoint"]["isMidPoint"]:
+                landmark1ID = landmarkDescription[midPointID]["midPoint"]["Point1"]
+                landmark2ID = landmarkDescription[midPointID]["midPoint"]["Point2"]
+                coord = self.calculateMidPointCoord(fidList, landmark1ID, landmark2ID)
+                index = fidList.GetMarkupIndexByID(midPointID)
+                fidList.SetNthFiducialPositionFromArray(index, coord)
+                if landmarkDescription[midPointID]["projection"]["isProjected"]:
+                    hardenModel = slicer.app.mrmlScene().GetNodeByID(fidList.GetAttribute("hardenModelID"))
+                    landmarkDescription[midPointID]["projection"]["closestPointIndex"] = \
+                        self.projectOnSurface(hardenModel, fidList, landmarkID)
+                    fidList.SetAttribute("landmarkDescription",self.encodeJSON(landmarkDescription))
+                self.updateMidPoint(fidList, midPointID)
+
     # Called when a landmarks is moved
     def onPointModifiedEvent(self, obj, event):
-        # print "----onPointModifiedEvent-----"
+        print "----onPointModifiedEvent PandP-----"
         landmarkDescription = self.decodeJSON(obj.GetAttribute("landmarkDescription"))
         if not landmarkDescription:
             return
@@ -648,7 +680,7 @@ class PickAndPaintLogic(ScriptedLoadableModuleLogic):
                 activeLandmarkState["projection"]["closestPointIndex"] = \
                     self.projectOnSurface(hardenModel, obj, selectedLandmarkID)
                 obj.SetAttribute("landmarkDescription",self.encodeJSON(landmarkDescription))
-
+            self.updateMidPoint(obj,selectedLandmarkID)
             self.findROI(obj)
         time.sleep(0.08)
         # Add the observer again
@@ -757,8 +789,11 @@ class PickAndPaintLogic(ScriptedLoadableModuleLogic):
         lut.SetNumberOfTableValues(tableSize)
         lut.Build()
         displayNode = inputModelNode.GetDisplayNode()
-        rgb = displayNode.GetColor()
-        lut.SetTableValue(0, rgb[0], rgb[1], rgb[2], 1)
+        if displayNode:
+            rgb = displayNode.GetColor()
+            lut.SetTableValue(0, rgb[0], rgb[1], rgb[2], 1)
+        else:
+            lut.SetTableValue(0, 0.0, 1.0, 0.0, 1)
         lut.SetTableValue(1, 1.0, 0.0, 0.0, 1)
         arrayToAdd.SetLookupTable(lut)
         pointData.AddArray(arrayToAdd)
@@ -866,9 +901,12 @@ class PickAndPaintLogic(ScriptedLoadableModuleLogic):
         messageBox.exec_()
 
     def encodeJSON(self, input):
-        return json.dumps(input)
+        encodedString = json.dumps(input)
+        encodedString = encodedString.replace('\"', '\'')
+        return encodedString
 
     def decodeJSON(self, input):
+        input = input.replace('\'','\"')
         return self.byteify(json.loads(input))
 
     def byteify(self, input):
@@ -952,7 +990,7 @@ class PickAndPaintTest(ScriptedLoadableModuleTest):
         return True
 
     def testDefineNeighborsFunction(self):
-        logic = SurfaceRegistrationLogic(slicer.modules.SurfaceRegistrationWidget)
+        logic = PickAndPaintLogic(slicer.modules.PickAndPaintWidget)
         sphereModel = self.defineSphere()
         polyData = sphereModel.GetPolyData()
         closestPointIndexList = [9, 35, 1]
@@ -983,7 +1021,7 @@ class PickAndPaintTest(ScriptedLoadableModuleTest):
         return True
         
     def testAddArrayFromIdListFunction(self):
-        logic = SurfaceRegistrationLogic(slicer.modules.SurfaceRegistrationWidget)
+        logic = PickAndPaintLogic(slicer.modules.PickAndPaintWidget)
         sphereModel = self.defineSphere()
         polyData = sphereModel.GetPolyData()
         closestPointIndexList = [9, 35, 1]
