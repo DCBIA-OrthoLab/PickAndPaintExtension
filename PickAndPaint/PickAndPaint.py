@@ -266,7 +266,6 @@ class PickAndPaintWidget(ScriptedLoadableModuleWidget):
         selectionNode = slicer.mrmlScene.GetNodeByID("vtkMRMLSelectionNodeSingleton")
         selectionNode.SetReferenceActivePlaceNodeClassName("vtkMRMLMarkupsFiducialNode")
         if self.logic.selectedModel:
-            print self.logic.selectedFidList
             if self.logic.selectedFidList:
                 selectionNode.SetActivePlaceNodeID(self.logic.selectedFidList.GetID())
                 self.interactionNode.SetCurrentInteractionMode(1)
@@ -397,15 +396,23 @@ class PickAndPaintLogic(ScriptedLoadableModuleLogic):
         # Update the 3D view on Slicer
         if not self.selectedFidList:
             return
+        if not self.selectedModel:
+            return
+        print "UpdateThreeDView"
         active = self.selectedFidList
-        landmarkDescription = self.decodeJSON(active.GetAttribute("landmarkDescription"))
+        #deactivate all landmarks
+        list = slicer.mrmlScene.GetNodesByClass("vtkMRMLMarkupsFiducialNode")
+        end = list.GetNumberOfItems()
         selectedFidReflID = self.findIDFromLabel(active,landmarkLabel)
-        for key in landmarkDescription.iterkeys():
-            markupsIndex = active.GetMarkupIndexByID(key)
-            if key != selectedFidReflID:
-                active.SetNthMarkupLocked(markupsIndex, True)
-            else:
-                active.SetNthMarkupLocked(markupsIndex, False)
+        for i in range(0,end):
+            fidList = list.GetItemAsObject(i)
+            landmarkDescription = self.decodeJSON(fidList.GetAttribute("landmarkDescription"))
+            for key in landmarkDescription.iterkeys():
+                markupsIndex = fidList.GetMarkupIndexByID(key)
+                if key != selectedFidReflID:
+                    fidList.SetNthMarkupLocked(markupsIndex, True)
+                else:
+                    fidList.SetNthMarkupLocked(markupsIndex, False)
         displayNode = self.selectedModel.GetModelDisplayNode()
         displayNode.SetScalarVisibility(False)
         if selectedFidReflID != False:
@@ -618,7 +625,7 @@ class PickAndPaintLogic(ScriptedLoadableModuleLogic):
         numOfMarkups = obj.GetNumberOfMarkups()
         markupID = obj.GetNthMarkupID(numOfMarkups - 1)  # because everytime a new node is added, its index is the last one on the list
         landmarkDescription[markupID] = dict()
-        landmarkLabel = obj.GetName() + '-' + str(numOfMarkups)
+        landmarkLabel = obj.GetNthMarkupLabel(numOfMarkups - 1)
         landmarkDescription[markupID]["landmarkLabel"] = landmarkLabel
         landmarkDescription[markupID]["ROIradius"] = 0
         landmarkDescription[markupID]["projection"] = dict()
@@ -709,11 +716,15 @@ class PickAndPaintLogic(ScriptedLoadableModuleLogic):
     def updateLandmarkComboBox(self, fidList):
         if not fidList:
             return
-        landmarkDescription = self.decodeJSON(fidList.GetAttribute("landmarkDescription"))
+        self.interface.landmarkComboBox.blockSignals(True)
         self.interface.landmarkComboBox.clear()
-        for key in landmarkDescription:
-            self.interface.landmarkComboBox.addItem(landmarkDescription[key]["landmarkLabel"])
+        numOfFid = fidList.GetNumberOfMarkups()
+        if numOfFid > 0:
+            for i in range(0, numOfFid):
+                landmarkLabel = fidList.GetNthMarkupLabel(i)
+                self.interface.landmarkComboBox.addItem(landmarkLabel)
         self.interface.landmarkComboBox.setCurrentIndex(self.interface.landmarkComboBox.count - 1)
+        self.interface.landmarkComboBox.blockSignals(False)
 
     def findIDFromLabel(self, fidList, landmarkLabel):
         # find the ID of the markupsNode from the label of a landmark!
