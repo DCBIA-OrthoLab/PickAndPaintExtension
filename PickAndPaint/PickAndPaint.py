@@ -713,17 +713,19 @@ class PickAndPaintLogic(ScriptedLoadableModuleLogic):
         obj.SetAttribute("landmarkDescription",self.encodeJSON(landmarkDescription))
         self.updateLandmarkComboBox(obj)
 
-    def updateLandmarkComboBox(self, fidList):
+    def updateLandmarkComboBox(self, fidList, displayMidPoint = True):
         if not fidList:
             return
+        landmarkDescription = self.decodeJSON(fidList.GetAttribute("landmarkDescription"))
         self.interface.landmarkComboBox.blockSignals(True)
         self.interface.landmarkComboBox.clear()
         numOfFid = fidList.GetNumberOfMarkups()
         if numOfFid > 0:
             for i in range(0, numOfFid):
-                landmarkLabel = fidList.GetNthMarkupLabel(i)
-                self.interface.landmarkComboBox.addItem(landmarkLabel)
-        self.interface.landmarkComboBox.setCurrentIndex(self.interface.landmarkComboBox.count - 1)
+                ID = fidList.GetNthMarkupID(i)
+                if not landmarkDescription[ID]["midPoint"]["isMidPoint"]:
+                    landmarkLabel = fidList.GetNthMarkupLabel(i)
+                    self.interface.landmarkComboBox.addItem(landmarkLabel)
         self.interface.landmarkComboBox.blockSignals(False)
 
     def findIDFromLabel(self, fidList, landmarkLabel):
