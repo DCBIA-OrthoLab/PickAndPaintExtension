@@ -25,161 +25,42 @@ class PickAndPaintWidget(ScriptedLoadableModuleWidget):
     def setup(self):
         print " ----- SetUp ------"
         ScriptedLoadableModuleWidget.setup(self)
-        # ------------------------------------------------------------------------------------
-        #                                   Global Variables
-        # ------------------------------------------------------------------------------------
-        self.logic = PickAndPaintLogic(self)
-        #-------------------------------------------------------------------------------------
-        # Interaction with 3D Scene
+        #reload the logic if there is any change
+        reload(PickAndPaintLogic)
+        self.logic = PickAndPaintLogic.PickAndPaintLogic(self)
         self.interactionNode = slicer.mrmlScene.GetNodeByID("vtkMRMLInteractionNodeSingleton")
-        # ------------------------------------------------------------------------------------
-        #                                    Input Selection
-        # ------------------------------------------------------------------------------------
-        inputModelLabel = qt.QLabel("Model of Reference: ")
-        self.inputModelSelector = slicer.qMRMLNodeComboBox()
-        self.inputModelSelector.objectName = 'inputFiducialsNodeSelector'
-        self.inputModelSelector.nodeTypes = ['vtkMRMLModelNode']
-        self.inputModelSelector.selectNodeUponCreation = False
-        self.inputModelSelector.addEnabled = False
-        self.inputModelSelector.removeEnabled = False
-        self.inputModelSelector.noneEnabled = True
-        self.inputModelSelector.showHidden = False
-        self.inputModelSelector.showChildNodeTypes = False
+
+        # UI setup
+        loader = qt.QUiLoader()
+        moduleName = 'PickAndPaint'
+        scriptedModulesPath = eval('slicer.modules.%s.path' % moduleName.lower())
+        scriptedModulesPath = os.path.dirname(scriptedModulesPath)
+        path = os.path.join(scriptedModulesPath, 'Resources', 'UI', '%s.ui' %moduleName)
+
+        qfile = qt.QFile(path)
+        qfile.open(qt.QFile.ReadOnly)
+        widget = loader.load(qfile, self.parent)
+        self.layout = self.parent.layout()
+        self.widget = widget
+        self.layout.addWidget(widget)
+
+        self.inputModelSelector = self.logic.get("inputModelSelector")
         self.inputModelSelector.setMRMLScene(slicer.mrmlScene)
-
-        inputLandmarksLabel = qt.QLabel("Connected landmarks")
-        self.inputLandmarksSelector = slicer.qMRMLNodeComboBox()
-        self.inputLandmarksSelector.objectName = 'inputFiducialsNodeSelector'
-        self.inputLandmarksSelector.nodeTypes = ['vtkMRMLMarkupsFiducialNode']
-        self.inputLandmarksSelector.selectNodeUponCreation = True
-        self.inputLandmarksSelector.addEnabled = True
-        self.inputLandmarksSelector.removeEnabled = False
-        self.inputLandmarksSelector.noneEnabled = True
-        self.inputLandmarksSelector.renameEnabled = True
-        self.inputLandmarksSelector.showHidden = False
-        self.inputLandmarksSelector.showChildNodeTypes = True
+        self.inputLandmarksSelector = self.logic.get("inputLandmarksSelector")
         self.inputLandmarksSelector.setMRMLScene(slicer.mrmlScene)
-        self.inputLandmarksSelector.setEnabled(False)
-
-        # input landmarks Frames
-        inputLandmarksSelectorFrame = qt.QFrame(self.parent)
-        inputLandmarksSelectorFrame.setLayout(qt.QHBoxLayout())
-        inputLandmarksSelectorFrame.layout().addWidget(inputLandmarksLabel)
-        inputLandmarksSelectorFrame.layout().addWidget(self.inputLandmarksSelector)
-
-        # Load on the surface
-        self.loadLandmarksOnSurfacCheckBox = qt.QCheckBox("On Surface")
-        self.loadLandmarksOnSurfacCheckBox.setChecked(True)
-
-        # Layouts
-        loadLandmarksLandmarkLayout = qt.QHBoxLayout()
-        loadLandmarksLandmarkLayout.addWidget(inputLandmarksSelectorFrame)
-        loadLandmarksLandmarkLayout.addWidget(self.loadLandmarksOnSurfacCheckBox)
-
-        inputModelSelectorFrame = qt.QFrame(self.parent)
-        inputModelSelectorFrame.setLayout(qt.QHBoxLayout())
-        inputModelSelectorFrame.layout().addWidget(inputModelLabel)
-        inputModelSelectorFrame.layout().addWidget(self.inputModelSelector)
-        #  ------------------------------------------------------------------------------------
-        #                                   BUTTONS
-        #  ------------------------------------------------------------------------------------
-        #  ------------------------------- AddLandmarks Group --------------------------------
-        # Landmarks Scale
-        self.landmarksScaleWidget = ctk.ctkSliderWidget()
-        self.landmarksScaleWidget.singleStep = 0.1
-        self.landmarksScaleWidget.minimum = 0.1
-        self.landmarksScaleWidget.maximum = 20.0
-        self.landmarksScaleWidget.value = 2.0
-        landmarksScaleLayout = qt.QFormLayout()
-        landmarksScaleLayout.addRow("Scale: ", self.landmarksScaleWidget)
-
-        # Add landmarks Button
-        self.addLandmarksButton = qt.QPushButton(" Add ")
-        self.addLandmarksButton.enabled = True
-
-        # Movements on the surface
-        self.surfaceDeplacementCheckBox = qt.QCheckBox("On Surface")
-        self.surfaceDeplacementCheckBox.setChecked(True)
-
-        # Layouts
-        scaleAndAddLandmarkLayout = qt.QHBoxLayout()
-        scaleAndAddLandmarkLayout.addWidget(self.addLandmarksButton)
-        scaleAndAddLandmarkLayout.addLayout(landmarksScaleLayout)
-        scaleAndAddLandmarkLayout.addWidget(self.surfaceDeplacementCheckBox)
-
-        # Addlandmarks GroupBox
-        addLandmarkBox = qt.QGroupBox()
-        addLandmarkBox.title = " Landmarks "
-        addLandmarkBox.setLayout(scaleAndAddLandmarkLayout)
-
-        #  ----------------------------------- ROI Group ------------------------------------
-        # ROI GroupBox
-        self.roiGroupBox = qt.QGroupBox()
-        self.roiGroupBox.title = "Region of interest"
-
-        self.landmarkComboBox = qt.QComboBox()
-
-        self.radiusDefinitionWidget = ctk.ctkSliderWidget()
-        self.radiusDefinitionWidget.singleStep = 1.0
-        self.radiusDefinitionWidget.minimum = 0.0
-        self.radiusDefinitionWidget.maximum = 20.0
-        self.radiusDefinitionWidget.value = 0.0
-        self.radiusDefinitionWidget.tracking = False
-
-        self.cleanerButton = qt.QPushButton('Clean mesh')
-
-        roiBoxLayout = qt.QFormLayout()
-        roiBoxLayout.addRow("Select a Landmark:", self.landmarkComboBox)
-        HBoxLayout = qt.QHBoxLayout()
-        HBoxLayout.addWidget(self.radiusDefinitionWidget)
-        HBoxLayout.addWidget(self.cleanerButton)
-        roiBoxLayout.addRow("Value of radius", HBoxLayout)
-        self.roiGroupBox.setLayout(roiBoxLayout)
-
-        self.ROICollapsibleButton = ctk.ctkCollapsibleButton()
-        self.ROICollapsibleButton.setText("Selection Region of Interest: ")
-        self.parent.layout().addWidget(self.ROICollapsibleButton)
-
-        ROICollapsibleButtonLayout = qt.QVBoxLayout()
-        ROICollapsibleButtonLayout.addWidget(inputModelSelectorFrame)
-        ROICollapsibleButtonLayout.addLayout(loadLandmarksLandmarkLayout)
-        ROICollapsibleButtonLayout.addWidget(addLandmarkBox)
-        ROICollapsibleButtonLayout.addWidget(self.roiGroupBox)
-        self.ROICollapsibleButton.setLayout(ROICollapsibleButtonLayout)
-
-        self.ROICollapsibleButton.checked = True
-        self.ROICollapsibleButton.enabled = True
-
-        #  ----------------------------- Propagate Button ----------------------------------
-        self.propagationCollapsibleButton = ctk.ctkCollapsibleButton()
-        self.propagationCollapsibleButton.setText(" Propagation: ")
-        self.parent.layout().addWidget(self.propagationCollapsibleButton)
-
-        self.shapesLayout = qt.QHBoxLayout()
-        self.correspondentShapes = qt.QRadioButton('Correspondent Meshes')
-        self.correspondentShapes.setChecked(True)
-        self.nonCorrespondentShapes = qt.QRadioButton('Non Correspondent Meshes')
-        self.nonCorrespondentShapes.setChecked(False)
-        self.shapesLayout.addWidget(self.correspondentShapes)
-        self.shapesLayout.addWidget(self.nonCorrespondentShapes)
-
-        self.propagationInputComboBox = slicer.qMRMLCheckableNodeComboBox()
-        self.propagationInputComboBox.nodeTypes = ['vtkMRMLModelNode']
+        self.loadLandmarksOnSurfacCheckBox = self.logic.get("loadLandmarksOnSurfacCheckBox")
+        self.landmarksScaleWidget = self.logic.get("landmarksScaleWidget")
+        self.addLandmarksButton = self.logic.get("addLandmarksButton")
+        self.surfaceDeplacementCheckBox = self.logic.get("surfaceDeplacementCheckBox")
+        self.landmarkComboBox = self.logic.get("landmarkComboBox")
+        self.radiusDefinitionWidget = self.logic.get("radiusDefinitionWidget")
+        self.cleanerButton = self.logic.get("cleanerButton")
+        self.correspondentShapes = self.logic.get("correspondentShapes")
+        self.nonCorrespondentShapes = self.logic.get("nonCorrespondentShapes")
+        self.propagationInputComboBox = self.logic.get("propagationInputComboBox")
         self.propagationInputComboBox.setMRMLScene(slicer.mrmlScene)
+        self.propagateButton = self.logic.get("propagateButton")
 
-        self.propagateButton = qt.QPushButton("Propagate")
-        self.propagateButton.enabled = True
-
-        propagationBoxLayout = qt.QVBoxLayout()
-        propagationBoxLayout.addLayout(self.shapesLayout)
-        propagationBoxLayout.addWidget(self.propagationInputComboBox)
-        propagationBoxLayout.addWidget(self.propagateButton)
-
-        self.propagationCollapsibleButton.setLayout(propagationBoxLayout)
-        self.propagationCollapsibleButton.checked = False
-        self.propagationCollapsibleButton.enabled = True
-
-        self.layout.addStretch(1)
         # ------------------------------------------------------------------------------------
         #                                   CONNECTIONS
         # ------------------------------------------------------------------------------------
