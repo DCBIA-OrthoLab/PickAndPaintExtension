@@ -76,6 +76,17 @@ class PickAndPaintWidget(ScriptedLoadableModuleWidget):
 
         slicer.mrmlScene.AddObserver(slicer.mrmlScene.EndCloseEvent, self.onCloseScene)
 
+    def enter(self):
+        model = self.inputModelSelector.currentNode()
+        fidlist = self.inputLandmarksSelector.currentNode()
+
+        if fidlist:
+            if fidlist.GetAttribute("connectedModelID") != model.GetID():
+                self.inputModelSelector.setCurrentNode(None)
+                self.inputLandmarksSelector.setCurrentNode(None)
+                self.landmarkComboBox.clear()
+        self.UpdateInterface()
+
     def onCloseScene(self, obj, event):
         list = slicer.mrmlScene.GetNodesByClass("vtkMRMLModelNode")
         end = list.GetNumberOfItems()
