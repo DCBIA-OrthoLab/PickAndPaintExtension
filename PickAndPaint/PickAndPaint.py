@@ -1,15 +1,16 @@
 import vtk, qt, ctk, slicer
+import os
+from slicer.ScriptedLoadableModule import *
 import numpy
 import time
 from slicer.ScriptedLoadableModule import *
 import json
 
-
 class PickAndPaint(ScriptedLoadableModule):
     def __init__(self, parent):
         ScriptedLoadableModule.__init__(self, parent)
         parent.title = "Pick 'n Paint "
-        parent.categories = ["Shape Analysis"]
+        parent.categories = ["Quantification"]
         parent.dependencies = []
         parent.contributors = ["Lucie Macron (University of Michigan), Jean-Baptiste Vimort (University of Michigan)"]
         parent.helpText = """
@@ -25,161 +26,41 @@ class PickAndPaintWidget(ScriptedLoadableModuleWidget):
     def setup(self):
         print " ----- SetUp ------"
         ScriptedLoadableModuleWidget.setup(self)
-        # ------------------------------------------------------------------------------------
-        #                                   Global Variables
-        # ------------------------------------------------------------------------------------
+        #reload the logic if there is any change
         self.logic = PickAndPaintLogic(self)
-        #-------------------------------------------------------------------------------------
-        # Interaction with 3D Scene
         self.interactionNode = slicer.mrmlScene.GetNodeByID("vtkMRMLInteractionNodeSingleton")
-        # ------------------------------------------------------------------------------------
-        #                                    Input Selection
-        # ------------------------------------------------------------------------------------
-        inputModelLabel = qt.QLabel("Model of Reference: ")
-        self.inputModelSelector = slicer.qMRMLNodeComboBox()
-        self.inputModelSelector.objectName = 'inputFiducialsNodeSelector'
-        self.inputModelSelector.nodeTypes = ['vtkMRMLModelNode']
-        self.inputModelSelector.selectNodeUponCreation = False
-        self.inputModelSelector.addEnabled = False
-        self.inputModelSelector.removeEnabled = False
-        self.inputModelSelector.noneEnabled = True
-        self.inputModelSelector.showHidden = False
-        self.inputModelSelector.showChildNodeTypes = False
+
+        # UI setup
+        loader = qt.QUiLoader()
+        moduleName = 'PickAndPaint'
+        scriptedModulesPath = eval('slicer.modules.%s.path' % moduleName.lower())
+        scriptedModulesPath = os.path.dirname(scriptedModulesPath)
+        path = os.path.join(scriptedModulesPath, 'Resources', 'UI', '%s.ui' %moduleName)
+
+        qfile = qt.QFile(path)
+        qfile.open(qt.QFile.ReadOnly)
+        widget = loader.load(qfile, self.parent)
+        self.layout = self.parent.layout()
+        self.widget = widget
+        self.layout.addWidget(widget)
+
+        self.inputModelSelector = self.logic.get("inputModelSelector")
         self.inputModelSelector.setMRMLScene(slicer.mrmlScene)
-
-        inputLandmarksLabel = qt.QLabel("Connected landmarks")
-        self.inputLandmarksSelector = slicer.qMRMLNodeComboBox()
-        self.inputLandmarksSelector.objectName = 'inputFiducialsNodeSelector'
-        self.inputLandmarksSelector.nodeTypes = ['vtkMRMLMarkupsFiducialNode']
-        self.inputLandmarksSelector.selectNodeUponCreation = True
-        self.inputLandmarksSelector.addEnabled = True
-        self.inputLandmarksSelector.removeEnabled = False
-        self.inputLandmarksSelector.noneEnabled = True
-        self.inputLandmarksSelector.renameEnabled = True
-        self.inputLandmarksSelector.showHidden = False
-        self.inputLandmarksSelector.showChildNodeTypes = True
+        self.inputLandmarksSelector = self.logic.get("inputLandmarksSelector")
         self.inputLandmarksSelector.setMRMLScene(slicer.mrmlScene)
-        self.inputLandmarksSelector.setEnabled(False)
-
-        # input landmarks Frames
-        inputLandmarksSelectorFrame = qt.QFrame(self.parent)
-        inputLandmarksSelectorFrame.setLayout(qt.QHBoxLayout())
-        inputLandmarksSelectorFrame.layout().addWidget(inputLandmarksLabel)
-        inputLandmarksSelectorFrame.layout().addWidget(self.inputLandmarksSelector)
-
-        # Load on the surface
-        self.loadLandmarksOnSurfacCheckBox = qt.QCheckBox("On Surface")
-        self.loadLandmarksOnSurfacCheckBox.setChecked(True)
-
-        # Layouts
-        loadLandmarksLandmarkLayout = qt.QHBoxLayout()
-        loadLandmarksLandmarkLayout.addWidget(inputLandmarksSelectorFrame)
-        loadLandmarksLandmarkLayout.addWidget(self.loadLandmarksOnSurfacCheckBox)
-
-        inputModelSelectorFrame = qt.QFrame(self.parent)
-        inputModelSelectorFrame.setLayout(qt.QHBoxLayout())
-        inputModelSelectorFrame.layout().addWidget(inputModelLabel)
-        inputModelSelectorFrame.layout().addWidget(self.inputModelSelector)
-        #  ------------------------------------------------------------------------------------
-        #                                   BUTTONS
-        #  ------------------------------------------------------------------------------------
-        #  ------------------------------- AddLandmarks Group --------------------------------
-        # Landmarks Scale
-        self.landmarksScaleWidget = ctk.ctkSliderWidget()
-        self.landmarksScaleWidget.singleStep = 0.1
-        self.landmarksScaleWidget.minimum = 0.1
-        self.landmarksScaleWidget.maximum = 20.0
-        self.landmarksScaleWidget.value = 2.0
-        landmarksScaleLayout = qt.QFormLayout()
-        landmarksScaleLayout.addRow("Scale: ", self.landmarksScaleWidget)
-
-        # Add landmarks Button
-        self.addLandmarksButton = qt.QPushButton(" Add ")
-        self.addLandmarksButton.enabled = True
-
-        # Movements on the surface
-        self.surfaceDeplacementCheckBox = qt.QCheckBox("On Surface")
-        self.surfaceDeplacementCheckBox.setChecked(True)
-
-        # Layouts
-        scaleAndAddLandmarkLayout = qt.QHBoxLayout()
-        scaleAndAddLandmarkLayout.addWidget(self.addLandmarksButton)
-        scaleAndAddLandmarkLayout.addLayout(landmarksScaleLayout)
-        scaleAndAddLandmarkLayout.addWidget(self.surfaceDeplacementCheckBox)
-
-        # Addlandmarks GroupBox
-        addLandmarkBox = qt.QGroupBox()
-        addLandmarkBox.title = " Landmarks "
-        addLandmarkBox.setLayout(scaleAndAddLandmarkLayout)
-
-        #  ----------------------------------- ROI Group ------------------------------------
-        # ROI GroupBox
-        self.roiGroupBox = qt.QGroupBox()
-        self.roiGroupBox.title = "Region of interest"
-
-        self.landmarkComboBox = qt.QComboBox()
-
-        self.radiusDefinitionWidget = ctk.ctkSliderWidget()
-        self.radiusDefinitionWidget.singleStep = 1.0
-        self.radiusDefinitionWidget.minimum = 0.0
-        self.radiusDefinitionWidget.maximum = 20.0
-        self.radiusDefinitionWidget.value = 0.0
-        self.radiusDefinitionWidget.tracking = False
-
-        self.cleanerButton = qt.QPushButton('Clean mesh')
-
-        roiBoxLayout = qt.QFormLayout()
-        roiBoxLayout.addRow("Select a Landmark:", self.landmarkComboBox)
-        HBoxLayout = qt.QHBoxLayout()
-        HBoxLayout.addWidget(self.radiusDefinitionWidget)
-        HBoxLayout.addWidget(self.cleanerButton)
-        roiBoxLayout.addRow("Value of radius", HBoxLayout)
-        self.roiGroupBox.setLayout(roiBoxLayout)
-
-        self.ROICollapsibleButton = ctk.ctkCollapsibleButton()
-        self.ROICollapsibleButton.setText("Selection Region of Interest: ")
-        self.parent.layout().addWidget(self.ROICollapsibleButton)
-
-        ROICollapsibleButtonLayout = qt.QVBoxLayout()
-        ROICollapsibleButtonLayout.addWidget(inputModelSelectorFrame)
-        ROICollapsibleButtonLayout.addLayout(loadLandmarksLandmarkLayout)
-        ROICollapsibleButtonLayout.addWidget(addLandmarkBox)
-        ROICollapsibleButtonLayout.addWidget(self.roiGroupBox)
-        self.ROICollapsibleButton.setLayout(ROICollapsibleButtonLayout)
-
-        self.ROICollapsibleButton.checked = True
-        self.ROICollapsibleButton.enabled = True
-
-        #  ----------------------------- Propagate Button ----------------------------------
-        self.propagationCollapsibleButton = ctk.ctkCollapsibleButton()
-        self.propagationCollapsibleButton.setText(" Propagation: ")
-        self.parent.layout().addWidget(self.propagationCollapsibleButton)
-
-        self.shapesLayout = qt.QHBoxLayout()
-        self.correspondentShapes = qt.QRadioButton('Correspondent Meshes')
-        self.correspondentShapes.setChecked(True)
-        self.nonCorrespondentShapes = qt.QRadioButton('Non Correspondent Meshes')
-        self.nonCorrespondentShapes.setChecked(False)
-        self.shapesLayout.addWidget(self.correspondentShapes)
-        self.shapesLayout.addWidget(self.nonCorrespondentShapes)
-
-        self.propagationInputComboBox = slicer.qMRMLCheckableNodeComboBox()
-        self.propagationInputComboBox.nodeTypes = ['vtkMRMLModelNode']
+        self.loadLandmarksOnSurfacCheckBox = self.logic.get("loadLandmarksOnSurfacCheckBox")
+        self.landmarksScaleWidget = self.logic.get("landmarksScaleWidget")
+        self.addLandmarksButton = self.logic.get("addLandmarksButton")
+        self.surfaceDeplacementCheckBox = self.logic.get("surfaceDeplacementCheckBox")
+        self.landmarkComboBox = self.logic.get("landmarkComboBox")
+        self.radiusDefinitionWidget = self.logic.get("radiusDefinitionWidget")
+        self.cleanerButton = self.logic.get("cleanerButton")
+        self.correspondentShapes = self.logic.get("correspondentShapes")
+        self.nonCorrespondentShapes = self.logic.get("nonCorrespondentShapes")
+        self.propagationInputComboBox = self.logic.get("propagationInputComboBox")
         self.propagationInputComboBox.setMRMLScene(slicer.mrmlScene)
+        self.propagateButton = self.logic.get("propagateButton")
 
-        self.propagateButton = qt.QPushButton("Propagate")
-        self.propagateButton.enabled = True
-
-        propagationBoxLayout = qt.QVBoxLayout()
-        propagationBoxLayout.addLayout(self.shapesLayout)
-        propagationBoxLayout.addWidget(self.propagationInputComboBox)
-        propagationBoxLayout.addWidget(self.propagateButton)
-
-        self.propagationCollapsibleButton.setLayout(propagationBoxLayout)
-        self.propagationCollapsibleButton.checked = False
-        self.propagationCollapsibleButton.enabled = True
-
-        self.layout.addStretch(1)
         # ------------------------------------------------------------------------------------
         #                                   CONNECTIONS
         # ------------------------------------------------------------------------------------
@@ -196,6 +77,17 @@ class PickAndPaintWidget(ScriptedLoadableModuleWidget):
 
 
         slicer.mrmlScene.AddObserver(slicer.mrmlScene.EndCloseEvent, self.onCloseScene)
+
+    def enter(self):
+        model = self.inputModelSelector.currentNode()
+        fidlist = self.inputLandmarksSelector.currentNode()
+
+        if fidlist:
+            if fidlist.GetAttribute("connectedModelID") != model.GetID():
+                self.inputModelSelector.setCurrentNode(None)
+                self.inputLandmarksSelector.setCurrentNode(None)
+                self.landmarkComboBox.clear()
+        self.UpdateInterface()
 
     def onCloseScene(self, obj, event):
         list = slicer.mrmlScene.GetNodesByClass("vtkMRMLModelNode")
@@ -266,7 +158,6 @@ class PickAndPaintWidget(ScriptedLoadableModuleWidget):
         selectionNode = slicer.mrmlScene.GetNodeByID("vtkMRMLSelectionNodeSingleton")
         selectionNode.SetReferenceActivePlaceNodeClassName("vtkMRMLMarkupsFiducialNode")
         if self.logic.selectedModel:
-            print self.logic.selectedFidList
             if self.logic.selectedFidList:
                 selectionNode.SetActivePlaceNodeID(self.logic.selectedFidList.GetID())
                 self.interactionNode.SetCurrentInteractionMode(1)
@@ -304,6 +195,7 @@ class PickAndPaintWidget(ScriptedLoadableModuleWidget):
         else:
             landmarkDescription[selectedFidReflID]["projection"]["isProjected"] = False
             landmarkDescription[selectedFidReflID]["projection"]["closestPointIndex"] = None
+            landmarkDescription[selectedFidReflID]["ROIradius"] = 0
         fidList.SetAttribute("landmarkDescription",self.logic.encodeJSON(landmarkDescription))
 
 
@@ -374,10 +266,14 @@ class PickAndPaintWidget(ScriptedLoadableModuleWidget):
             modelToPropagate = slicer.mrmlScene.GetNodeByID(IDmodelToPropagate)
             isClean = self.logic.decodeJSON(fidList.GetAttribute("isClean"))
             if isClean:
-                if isClean["isClean"]:
+                if not isClean["isClean"]:
                     self.logic.cleanerAndTriangleFilter(modelToPropagate)
                     hardenModel = self.logic.createIntermediateHardenModel(modelToPropagate)
                     modelToPropagate.SetAttribute("hardenModelID",hardenModel.GetID())
+            else:
+                self.logic.cleanerAndTriangleFilter(modelToPropagate)
+                hardenModel = self.logic.createIntermediateHardenModel(modelToPropagate)
+                modelToPropagate.SetAttribute("hardenModelID",hardenModel.GetID())
             if self.correspondentShapes.isChecked():
                 fidList.SetAttribute("typeOfPropagation","correspondentShapes")
                 self.logic.propagateCorrespondent(model, modelToPropagate, arrayName)
@@ -386,25 +282,48 @@ class PickAndPaintWidget(ScriptedLoadableModuleWidget):
                 self.logic.propagateNonCorrespondent(fidList, modelToPropagate)
         self.UpdateInterface()
 
+
+
 class PickAndPaintLogic(ScriptedLoadableModuleLogic):
     def __init__(self, interface):
         self.selectedModel = None
         self.selectedFidList = None
         self.interface = interface
 
+    def get(self, objectName):
+        return self.findWidget(self.interface.widget, objectName)
+
+    def findWidget(self, widget, objectName):
+        if widget.objectName == objectName:
+            return widget
+        else:
+            for w in widget.children():
+                resulting_widget = self.findWidget(w, objectName)
+                if resulting_widget:
+                    return resulting_widget
+            return None
+
     def UpdateThreeDView(self, landmarkLabel):
         # Update the 3D view on Slicer
         if not self.selectedFidList:
             return
+        if not self.selectedModel:
+            return
+        print "UpdateThreeDView"
         active = self.selectedFidList
-        landmarkDescription = self.decodeJSON(active.GetAttribute("landmarkDescription"))
+        #deactivate all landmarks
+        list = slicer.mrmlScene.GetNodesByClass("vtkMRMLMarkupsFiducialNode")
+        end = list.GetNumberOfItems()
         selectedFidReflID = self.findIDFromLabel(active,landmarkLabel)
-        for key in landmarkDescription.iterkeys():
-            markupsIndex = active.GetMarkupIndexByID(key)
-            if key != selectedFidReflID:
-                active.SetNthMarkupLocked(markupsIndex, True)
-            else:
-                active.SetNthMarkupLocked(markupsIndex, False)
+        for i in range(0,end):
+            fidList = list.GetItemAsObject(i)
+            landmarkDescription = self.decodeJSON(fidList.GetAttribute("landmarkDescription"))
+            for key in landmarkDescription.iterkeys():
+                markupsIndex = fidList.GetMarkupIndexByID(key)
+                if key != selectedFidReflID:
+                    fidList.SetNthMarkupLocked(markupsIndex, True)
+                else:
+                    fidList.SetNthMarkupLocked(markupsIndex, False)
         displayNode = self.selectedModel.GetModelDisplayNode()
         displayNode.SetScalarVisibility(False)
         if selectedFidReflID != False:
@@ -597,6 +516,8 @@ class PickAndPaintLogic(ScriptedLoadableModuleLogic):
                 else:
                     landmarkSelector.setCurrentNode(None)
                     return
+            else:
+                landmarks.SetAttribute("hardenModelID",model.GetAttribute("hardenModelID"))
         # creation of the data structure
         else:
             self.createNewDataStructure(landmarks, model, onSurface)
@@ -617,7 +538,7 @@ class PickAndPaintLogic(ScriptedLoadableModuleLogic):
         numOfMarkups = obj.GetNumberOfMarkups()
         markupID = obj.GetNthMarkupID(numOfMarkups - 1)  # because everytime a new node is added, its index is the last one on the list
         landmarkDescription[markupID] = dict()
-        landmarkLabel = obj.GetName() + '-' + str(numOfMarkups)
+        landmarkLabel = obj.GetNthMarkupLabel(numOfMarkups - 1)
         landmarkDescription[markupID]["landmarkLabel"] = landmarkLabel
         landmarkDescription[markupID]["ROIradius"] = 0
         landmarkDescription[markupID]["projection"] = dict()
@@ -705,14 +626,20 @@ class PickAndPaintLogic(ScriptedLoadableModuleLogic):
         obj.SetAttribute("landmarkDescription",self.encodeJSON(landmarkDescription))
         self.updateLandmarkComboBox(obj)
 
-    def updateLandmarkComboBox(self, fidList):
+    def updateLandmarkComboBox(self, fidList, displayMidPoint = True):
         if not fidList:
             return
         landmarkDescription = self.decodeJSON(fidList.GetAttribute("landmarkDescription"))
+        self.interface.landmarkComboBox.blockSignals(True)
         self.interface.landmarkComboBox.clear()
-        for key in landmarkDescription:
-            self.interface.landmarkComboBox.addItem(landmarkDescription[key]["landmarkLabel"])
-        self.interface.landmarkComboBox.setCurrentIndex(self.interface.landmarkComboBox.count - 1)
+        numOfFid = fidList.GetNumberOfMarkups()
+        if numOfFid > 0:
+            for i in range(0, numOfFid):
+                ID = fidList.GetNthMarkupID(i)
+                if not landmarkDescription[ID]["midPoint"]["isMidPoint"]:
+                    landmarkLabel = fidList.GetNthMarkupLabel(i)
+                    self.interface.landmarkComboBox.addItem(landmarkLabel)
+        self.interface.landmarkComboBox.blockSignals(False)
 
     def findIDFromLabel(self, fidList, landmarkLabel):
         # find the ID of the markupsNode from the label of a landmark!
@@ -720,7 +647,7 @@ class PickAndPaintLogic(ScriptedLoadableModuleLogic):
         for ID, value in landmarkDescription.iteritems():
             if value["landmarkLabel"] == landmarkLabel:
                 return ID
-        return False
+        return None
 
     def getClosestPointIndex(self, fidNode, inputPolyData, landmarkID):
         landmarkCoord = numpy.zeros(3)
@@ -906,8 +833,10 @@ class PickAndPaintLogic(ScriptedLoadableModuleLogic):
         return encodedString
 
     def decodeJSON(self, input):
-        input = input.replace('\'','\"')
-        return self.byteify(json.loads(input))
+        if input:
+            input = input.replace('\'','\"')
+            return self.byteify(json.loads(input))
+        return None
 
     def byteify(self, input):
         if isinstance(input, dict):
@@ -929,13 +858,13 @@ class PickAndPaintTest(ScriptedLoadableModuleTest):
 
         self.delayDisplay(' Test getClosestPointIndex Function ')
         self.assertTrue(self.testGetClosestPointIndexFunction())
-        
+
         self.delayDisplay(' Test replaceLandmark Function ')
         self.assertTrue( self.testReplaceLandmarkFunction() )
 
         self.delayDisplay(' Test DefineNeighbors Function ')
         self.assertTrue( self.testDefineNeighborsFunction() )
-    
+
         self.delayDisplay(' Test addArrayFromIdList Function ')
         self.assertTrue( self.testAddArrayFromIdListFunction() )
 
@@ -949,8 +878,8 @@ class PickAndPaintTest(ScriptedLoadableModuleTest):
         polyData = sphereModel.GetPolyData()
         logic = PickAndPaintLogic(slicer.modules.PickAndPaintWidget)
         markupsLogic = self.defineMarkupsLogic()
-        
-        
+
+
         closestPointIndexList.append(logic.getClosestPointIndex(slicer.mrmlScene.GetNodeByID(markupsLogic.GetActiveListID()),
                                                                 polyData,
                                                                 0))
@@ -960,14 +889,14 @@ class PickAndPaintTest(ScriptedLoadableModuleTest):
         closestPointIndexList.append(logic.getClosestPointIndex(slicer.mrmlScene.GetNodeByID(markupsLogic.GetActiveListID()),
                                                                 polyData,
                                                                 2))
-                                                                     
+
         if closestPointIndexList[0] != 9 or closestPointIndexList[1] != 35 or closestPointIndexList[2] != 1:
             return False
         return True
-    
+
     def testReplaceLandmarkFunction(self):
         print ' Test replaceLandmark Function '
-        logic = PickAndPaintLogic(slicer.modules.PickAndPaintWidget)
+        logic =  PickAndPaintLogic(slicer.modules.PickAndPaintWidget)
         sphereModel = self.defineSphere()
         polyData = sphereModel.GetPolyData()
         markupsLogic = self.defineMarkupsLogic()
@@ -1019,7 +948,7 @@ class PickAndPaintTest(ScriptedLoadableModuleTest):
             else:
                 print "test ",i ," AddArrayFromIdList: succeed"
         return True
-        
+
     def testAddArrayFromIdListFunction(self):
         logic = PickAndPaintLogic(slicer.modules.PickAndPaintWidget)
         sphereModel = self.defineSphere()
@@ -1048,7 +977,7 @@ class PickAndPaintTest(ScriptedLoadableModuleTest):
         model.SetAndObserveDisplayNodeID(modelDisplay.GetID())
         modelDisplay.SetInputPolyDataConnection(sphereSource.GetOutputPort())
         return model
-    
+
     def defineMarkupsLogic(self):
         slicer.mrmlScene.Clear(0)
         markupsLogic = slicer.modules.markups.logic()
@@ -1056,5 +985,3 @@ class PickAndPaintTest(ScriptedLoadableModuleTest):
         markupsLogic.AddFiducial(-59.713, -67.347, -19.529)
         markupsLogic.AddFiducial(-10.573, -3.036, -93.381)
         return markupsLogic
-
-
