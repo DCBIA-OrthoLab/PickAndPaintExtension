@@ -259,6 +259,9 @@ class PickAndPaintWidget(ScriptedLoadableModuleWidget):
         if not self.inputLandmarksSelector.currentNode():
             return
         model = self.inputModelSelector.currentNode()
+        self.logic.cleanerAndTriangleFilter(model)
+        hardenModel = self.logic.createIntermediateHardenModel(model)
+        model.SetAttribute("hardenModelID",hardenModel.GetID())
         fidList = self.inputLandmarksSelector.currentNode()
         arrayName = fidList.GetAttribute("arrayName")
         modelToPropagateList = self.logic.decodeJSON(fidList.GetAttribute("modelToPropList"))["modelToPropList"]
