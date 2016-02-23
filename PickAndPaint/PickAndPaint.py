@@ -24,7 +24,7 @@ class PickAndPaint(ScriptedLoadableModule):
 
 class PickAndPaintWidget(ScriptedLoadableModuleWidget):
     def setup(self):
-        print " ----- SetUp ------"
+        print "-------Pick And Paint Widget Setup--------"
         ScriptedLoadableModuleWidget.setup(self)
         #reload the logic if there is any change
         self.logic = PickAndPaintLogic(self)
@@ -44,6 +44,9 @@ class PickAndPaintWidget(ScriptedLoadableModuleWidget):
         self.widget = widget
         self.layout.addWidget(widget)
 
+        self.SceneCollapsibleButton = self.logic.get("SceneCollapsibleButton") # this atribute is usefull for Longitudinal quantification extension
+        self.inputModelLabel = self.logic.get("inputModelLabel")  # this atribute is usefull for Longitudinal quantification extension
+        self.inputLandmarksLabel = self.logic.get("inputLandmarksLabel")  # this atribute is usefull for Longitudinal quantification extension
         self.inputModelSelector = self.logic.get("inputModelSelector")
         self.inputModelSelector.setMRMLScene(slicer.mrmlScene)
         self.inputLandmarksSelector = self.logic.get("inputLandmarksSelector")
