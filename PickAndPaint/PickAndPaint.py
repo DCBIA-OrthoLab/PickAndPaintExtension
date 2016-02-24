@@ -44,13 +44,13 @@ class PickAndPaintWidget(ScriptedLoadableModuleWidget):
         self.widget = widget
         self.layout.addWidget(widget)
 
-        self.SceneCollapsibleButton = self.logic.get("SceneCollapsibleButton") # this atribute is usefull for Longitudinal quantification extension
         self.inputModelLabel = self.logic.get("inputModelLabel")  # this atribute is usefull for Longitudinal quantification extension
         self.inputLandmarksLabel = self.logic.get("inputLandmarksLabel")  # this atribute is usefull for Longitudinal quantification extension
         self.inputModelSelector = self.logic.get("inputModelSelector")
         self.inputModelSelector.setMRMLScene(slicer.mrmlScene)
         self.inputLandmarksSelector = self.logic.get("inputLandmarksSelector")
         self.inputLandmarksSelector.setMRMLScene(slicer.mrmlScene)
+        self.inputLandmarksSelector.setEnabled(False) # The "enable" property seems to not be imported from the .ui
         self.loadLandmarksOnSurfacCheckBox = self.logic.get("loadLandmarksOnSurfacCheckBox")
         self.landmarksScaleWidget = self.logic.get("landmarksScaleWidget")
         self.addLandmarksButton = self.logic.get("addLandmarksButton")
