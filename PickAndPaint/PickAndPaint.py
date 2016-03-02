@@ -24,7 +24,7 @@ class PickAndPaint(ScriptedLoadableModule):
 
 class PickAndPaintWidget(ScriptedLoadableModuleWidget):
     def setup(self):
-        print " ----- SetUp ------"
+        print "-------Pick And Paint Widget Setup--------"
         ScriptedLoadableModuleWidget.setup(self)
         #reload the logic if there is any change
         self.logic = PickAndPaintLogic(self)
@@ -44,10 +44,13 @@ class PickAndPaintWidget(ScriptedLoadableModuleWidget):
         self.widget = widget
         self.layout.addWidget(widget)
 
+        self.inputModelLabel = self.logic.get("inputModelLabel")  # this atribute is usefull for Longitudinal quantification extension
+        self.inputLandmarksLabel = self.logic.get("inputLandmarksLabel")  # this atribute is usefull for Longitudinal quantification extension
         self.inputModelSelector = self.logic.get("inputModelSelector")
         self.inputModelSelector.setMRMLScene(slicer.mrmlScene)
         self.inputLandmarksSelector = self.logic.get("inputLandmarksSelector")
         self.inputLandmarksSelector.setMRMLScene(slicer.mrmlScene)
+        self.inputLandmarksSelector.setEnabled(False) # The "enable" property seems to not be imported from the .ui
         self.loadLandmarksOnSurfacCheckBox = self.logic.get("loadLandmarksOnSurfacCheckBox")
         self.landmarksScaleWidget = self.logic.get("landmarksScaleWidget")
         self.addLandmarksButton = self.logic.get("addLandmarksButton")
@@ -88,6 +91,19 @@ class PickAndPaintWidget(ScriptedLoadableModuleWidget):
                 self.inputLandmarksSelector.setCurrentNode(None)
                 self.landmarkComboBox.clear()
         self.UpdateInterface()
+
+        # Checking the names of the fiducials
+        list = slicer.mrmlScene.GetNodesByClass("vtkMRMLMarkupsFiducialNode")
+        end = list.GetNumberOfItems()
+        for i in range(0,end):
+            fidList = list.GetItemAsObject(i)
+            landmarkDescription = self.logic.decodeJSON(fidList.GetAttribute("landmarkDescription"))
+            if landmarkDescription:
+                for n in range(fidList.GetNumberOfMarkups()):
+                    markupID = fidList.GetNthMarkupID(n)
+                    markupLabel = fidList.GetNthMarkupLabel(n)
+                    landmarkDescription[markupID]["landmarkLabel"] = markupLabel
+                fidList.SetAttribute("landmarkDescription",self.logic.encodeJSON(landmarkDescription))
 
     def onCloseScene(self, obj, event):
         list = slicer.mrmlScene.GetNodesByClass("vtkMRMLModelNode")
@@ -441,7 +457,7 @@ class PickAndPaintLogic(ScriptedLoadableModuleLogic):
         for n in range(landmarks.GetNumberOfMarkups()):
             markupID = landmarks.GetNthMarkupID(n)
             landmarkDescription[markupID] = dict()
-            landmarkLabel = landmarks.GetName() + '-' + str(n + 1)
+            landmarkLabel = landmarks.GetNthMarkupLabel(n)
             landmarkDescription[markupID]["landmarkLabel"] = landmarkLabel
             landmarkDescription[markupID]["ROIradius"] = 0
             landmarkDescription[markupID]["projection"] = dict()
