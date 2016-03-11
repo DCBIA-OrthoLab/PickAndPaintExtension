@@ -1,12 +1,12 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <ui version="4.0">
- <class>Form</class>
- <widget class="qMRMLWidget" name="Form">
+ <class>PickAndPaint</class>
+ <widget class="qMRMLWidget" name="PickAndPaint">
   <property name="geometry">
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>491</width>
+    <width>521</width>
     <height>768</height>
    </rect>
   </property>
@@ -81,7 +81,7 @@
            </size>
           </property>
           <property name="text">
-           <string>Connected landmarks:</string>
+           <string>Connected landmarks List:</string>
           </property>
          </widget>
         </item>
@@ -130,7 +130,7 @@
       <item>
        <widget class="QGroupBox" name="groupBox">
         <property name="title">
-         <string>GroupBox</string>
+         <string>Add Landmark</string>
         </property>
         <layout class="QHBoxLayout" name="horizontalLayout_3">
          <item>
@@ -141,33 +141,13 @@
           </widget>
          </item>
          <item>
-          <widget class="QLabel" name="label_5">
-           <property name="text">
-            <string>Scale:</string>
-           </property>
-          </widget>
-         </item>
-         <item>
-          <widget class="ctkSliderWidget" name="landmarksScaleWidget">
-           <property name="enabled">
-            <bool>true</bool>
-           </property>
-           <property name="singleStep">
-            <double>0.100000000000000</double>
-           </property>
-           <property name="minimum">
-            <double>0.100000000000000</double>
-           </property>
-           <property name="maximum">
-            <double>20.000000000000000</double>
-           </property>
-           <property name="value">
-            <double>2.000000000000000</double>
-           </property>
-          </widget>
-         </item>
-         <item>
           <widget class="QCheckBox" name="surfaceDeplacementCheckBox">
+           <property name="maximumSize">
+            <size>
+             <width>90</width>
+             <height>16777215</height>
+            </size>
+           </property>
            <property name="text">
             <string>On Surface</string>
            </property>
@@ -182,7 +162,7 @@
       <item>
        <widget class="QGroupBox" name="groupBox_2">
         <property name="title">
-         <string>GroupBox</string>
+         <string>Modify Landmark</string>
         </property>
         <layout class="QVBoxLayout" name="verticalLayout_3">
          <item>
@@ -211,6 +191,45 @@
            </item>
           </layout>
          </item>
+         <item>
+          <layout class="QHBoxLayout" name="horizontalLayout">
+           <item>
+            <widget class="QLabel" name="label_5">
+             <property name="text">
+              <string>Scale:</string>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <widget class="ctkSliderWidget" name="landmarksScaleWidget">
+             <property name="enabled">
+              <bool>true</bool>
+             </property>
+             <property name="singleStep">
+              <double>0.100000000000000</double>
+             </property>
+             <property name="minimum">
+              <double>0.100000000000000</double>
+             </property>
+             <property name="maximum">
+              <double>20.000000000000000</double>
+             </property>
+             <property name="value">
+              <double>2.000000000000000</double>
+             </property>
+            </widget>
+           </item>
+          </layout>
+         </item>
+        </layout>
+       </widget>
+      </item>
+      <item>
+       <widget class="QGroupBox" name="groupBox_3">
+        <property name="title">
+         <string>ROI definition</string>
+        </property>
+        <layout class="QVBoxLayout" name="verticalLayout_5">
          <item>
           <layout class="QHBoxLayout" name="horizontalLayout_5">
            <item>
