@@ -50,6 +50,7 @@ class PickAndPaintWidget(ScriptedLoadableModuleWidget):
         self.inputModelSelector.setMRMLScene(slicer.mrmlScene)
         self.inputLandmarksSelector = self.logic.get("inputLandmarksSelector")
         self.inputLandmarksSelector.setMRMLScene(slicer.mrmlScene)
+        self.inputLandmarksSelector.addEnabled = True
         self.inputLandmarksSelector.setEnabled(False) # The "enable" property seems to not be imported from the .ui
         self.loadLandmarksOnSurfacCheckBox = self.logic.get("loadLandmarksOnSurfacCheckBox")
         self.landmarksScaleWidget = self.logic.get("landmarksScaleWidget")
@@ -337,6 +338,9 @@ class PickAndPaintLogic(ScriptedLoadableModuleLogic):
         for i in range(0,end):
             fidList = list.GetItemAsObject(i)
             landmarkDescription = self.decodeJSON(fidList.GetAttribute("landmarkDescription"))
+            if not landmarkDescription:
+                # Not a PickAndPaint markup fiducial list
+                continue
             for key in landmarkDescription.iterkeys():
                 markupsIndex = fidList.GetMarkupIndexByID(key)
                 if key != selectedFidReflID:
