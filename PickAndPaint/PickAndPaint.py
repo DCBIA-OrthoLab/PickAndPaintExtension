@@ -910,6 +910,7 @@ class PickAndPaintTest(ScriptedLoadableModuleTest):
                                                                 polyData,
                                                                 2))
 
+
         if closestPointIndexList[0] != 9 or closestPointIndexList[1] != 35 or closestPointIndexList[2] != 1:
             return False
         return True
@@ -990,6 +991,7 @@ class PickAndPaintTest(ScriptedLoadableModuleTest):
     def defineSphere(self):
         sphereSource = vtk.vtkSphereSource()
         sphereSource.SetRadius(100.0)
+        sphereSource.Update()
         model = slicer.vtkMRMLModelNode()
         model.SetAndObservePolyData(sphereSource.GetOutput())
         modelDisplay = slicer.vtkMRMLModelDisplayNode()
