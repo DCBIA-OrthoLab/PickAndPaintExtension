@@ -516,21 +516,21 @@ class PickAndPaintLogic(ScriptedLoadableModuleLogic):
             return
         connectedModelID = landmarks.GetAttribute("connectedModelID")
         try:
-            tag = self.decodeJSON(landmarks.GetAttribute("MarkupAddedEventTag"))
-            landmarks.RemoveObserver(tag["MarkupAddedEventTag"])
-            print("adding observers removed!")
+            tag = self.decodeJSON(landmarks.GetAttribute("PointAddedEventTag"))
+            landmarks.RemoveObserver(tag["PointAddedEventTag"])
+            print("PointAddedEvent observers removed!")
         except:
             pass
         try:
             tag = self.decodeJSON(landmarks.GetAttribute("PointModifiedEventTag"))
             landmarks.RemoveObserver(tag["PointModifiedEventTag"])
-            print("moving observers removed!")
+            print("PointModifiedEvent observers removed!")
         except:
             pass
         try:
-            tag = self.decodeJSON(landmarks.GetAttribute("MarkupRemovedEventTag"))
-            landmarks.RemoveObserver(tag["MarkupRemovedEventTag"])
-            print("moving observers removed!")
+            tag = self.decodeJSON(landmarks.GetAttribute("PointRemovedEventTag"))
+            landmarks.RemoveObserver(tag["PointRemovedEventTag"])
+            print("PointRemovedEvent observers removed!")
         except:
             pass
         if connectedModelID:
@@ -548,15 +548,15 @@ class PickAndPaintLogic(ScriptedLoadableModuleLogic):
         #update of the landmark Combo Box
         self.updateLandmarkComboBox(landmarks)
         #adding of listeners
-        MarkupAddedEventTag = landmarks.AddObserver(landmarks.MarkupAddedEvent, self.onMarkupAddedEvent)
-        landmarks.SetAttribute("MarkupAddedEventTag",self.encodeJSON({"MarkupAddedEventTag":MarkupAddedEventTag}))
+        PointAddedEventTag = landmarks.AddObserver(landmarks.PointAddedEvent, self.onPointAddedEvent)
+        landmarks.SetAttribute("PointAddedEventTag",self.encodeJSON({"PointAddedEventTag":PointAddedEventTag}))
         PointModifiedEventTag = landmarks.AddObserver(landmarks.PointModifiedEvent, self.onPointModifiedEvent)
         landmarks.SetAttribute("PointModifiedEventTag",self.encodeJSON({"PointModifiedEventTag":PointModifiedEventTag}))
-        MarkupRemovedEventTag = landmarks.AddObserver(landmarks.MarkupRemovedEvent, self.onMarkupRemovedEvent)
-        landmarks.SetAttribute("MarkupRemovedEventTag",self.encodeJSON({"MarkupRemovedEventTag":MarkupRemovedEventTag}))
+        PointRemovedEventTag = landmarks.AddObserver(landmarks.PointRemovedEvent, self.onPointRemovedEvent)
+        landmarks.SetAttribute("PointRemovedEventTag",self.encodeJSON({"PointRemovedEventTag":PointRemovedEventTag}))
 
     # Called when a landmark is added on a model
-    def onMarkupAddedEvent(self, obj, event):
+    def onPointAddedEvent(self, obj, event):
         print("------markup adding-------")
         landmarkDescription = self.decodeJSON(obj.GetAttribute("landmarkDescription"))
         numOfMarkups = obj.GetNumberOfMarkups()
@@ -633,7 +633,7 @@ class PickAndPaintLogic(ScriptedLoadableModuleLogic):
         PointModifiedEventTag = obj.AddObserver(obj.PointModifiedEvent, self.onPointModifiedEvent)
         obj.SetAttribute("PointModifiedEventTag",self.encodeJSON({"PointModifiedEventTag":PointModifiedEventTag}))
 
-    def onMarkupRemovedEvent(self, obj, event):
+    def onPointRemovedEvent(self, obj, event):
         print("------markup deleting-------")
         landmarkDescription = self.decodeJSON(obj.GetAttribute("landmarkDescription"))
         IDs = []
