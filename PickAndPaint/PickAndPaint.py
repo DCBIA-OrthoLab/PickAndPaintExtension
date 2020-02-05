@@ -342,7 +342,7 @@ class PickAndPaintLogic(ScriptedLoadableModuleLogic):
             if not landmarkDescription:
                 # Not a PickAndPaint markup fiducial list
                 continue
-            for key in landmarkDescription.iterkeys():
+            for key in landmarkDescription.keys():
                 markupsIndex = fidList.GetMarkupIndexByID(key)
                 if key != selectedFidReflID:
                     fidList.SetNthMarkupLocked(markupsIndex, True)
