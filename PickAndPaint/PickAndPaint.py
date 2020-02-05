@@ -5,7 +5,6 @@ import os
 from slicer.ScriptedLoadableModule import *
 import numpy
 import time
-from slicer.ScriptedLoadableModule import *
 import json
 
 class PickAndPaint(ScriptedLoadableModule):
