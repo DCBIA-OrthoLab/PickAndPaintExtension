@@ -282,7 +282,12 @@ class PickAndPaintWidget(ScriptedLoadableModuleWidget):
         model.SetAttribute("hardenModelID",hardenModel.GetID())
         fidList = self.inputLandmarksSelector.currentNode()
         arrayName = fidList.GetAttribute("arrayName")
-        modelToPropagateList = self.logic.decodeJSON(fidList.GetAttribute("modelToPropList"))["modelToPropList"]
+
+        decoded_json = self.logic.decodeJSON(fidList.GetAttribute("modelToPropList"))
+        modelToPropagateList = []
+        if decoded_json is not None:
+            modelToPropagateList = decoded_json["modelToPropList"]
+
         for IDmodelToPropagate in modelToPropagateList:
             modelToPropagate = slicer.mrmlScene.GetNodeByID(IDmodelToPropagate)
             isClean = self.logic.decodeJSON(fidList.GetAttribute("isClean"))
