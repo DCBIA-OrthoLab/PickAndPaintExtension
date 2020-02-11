@@ -202,6 +202,11 @@ class PickAndPaintWidget(ScriptedLoadableModuleWidget):
         fidList = self.logic.selectedFidList
         if not fidList:
             return
+        # The following case can occur if a new MarkupsFiducial is generated to hold new
+        # landmarks. The list will start empty and the landmark combo box will hold nothing.
+        # In this case there is no need to continue with this routine.
+        if self.landmarkComboBox.currentText == '':
+            return
         selectedFidReflID = self.logic.findIDFromLabel(fidList, self.landmarkComboBox.currentText)
         isOnSurface = self.surfaceDeplacementCheckBox.isChecked()
         landmarkDescription = self.logic.decodeJSON(fidList.GetAttribute("landmarkDescription"))
