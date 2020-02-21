@@ -23,6 +23,7 @@ class PickAndPaint(ScriptedLoadableModule):
         parent.contributors = [
             'Lucie Macron (University of Michigan)',
             'Jean-Baptiste Vimort (University of Michigan)',
+            'James Hoctor (Kitware Inc.)',
         ]
         parent.helpText = """
         Pick 'n Paint tool allows users to select ROIs on a reference model and to propagate it over different time point models.
