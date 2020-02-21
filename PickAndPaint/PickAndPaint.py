@@ -122,7 +122,7 @@ class PickAndPaintWidget(ScriptedLoadableModuleWidget):
         # Checking the names of the fiducials
         list = slicer.mrmlScene.GetNodesByClass("vtkMRMLMarkupsFiducialNode")
         end = list.GetNumberOfItems()
-        for i in range(0, end):
+        for i in range(end):
             fidList = list.GetItemAsObject(i)
             landmarkDescription = self.logic.decodeJSON(
                 fidList.GetAttribute("landmarkDescription"))
@@ -137,7 +137,7 @@ class PickAndPaintWidget(ScriptedLoadableModuleWidget):
     def onCloseScene(self, obj, event):
         list = slicer.mrmlScene.GetNodesByClass("vtkMRMLModelNode")
         end = list.GetNumberOfItems()
-        for i in range(0, end):
+        for i in range(end):
             model = list.GetItemAsObject(i)
             hardenModel = slicer.mrmlScene.GetNodesByName(
                 model.GetName()).GetItemAsObject(0)
@@ -397,7 +397,7 @@ class PickAndPaintLogic(ScriptedLoadableModuleLogic):
         list = slicer.mrmlScene.GetNodesByClass("vtkMRMLMarkupsFiducialNode")
         end = list.GetNumberOfItems()
         selectedFidReflID = self.findIDFromLabel(active, landmarkLabel)
-        for i in range(0, end):
+        for i in range(end):
             fidList = list.GetItemAsObject(i)
             landmarkDescription = self.decodeJSON(
                 fidList.GetAttribute("landmarkDescription"))
@@ -441,7 +441,7 @@ class PickAndPaintLogic(ScriptedLoadableModuleLogic):
         # for each fiducial list
         list = slicer.mrmlScene.GetNodesByClass("vtkMRMLMarkupsFiducialNode")
         end = list.GetNumberOfItems()
-        for i in range(0, end):
+        for i in range(end):
             # If landmarks are projected on the modified model
             fidList = list.GetItemAsObject(i)
             if fidList.GetAttribute("connectedModelID"):
@@ -762,7 +762,7 @@ class PickAndPaintLogic(ScriptedLoadableModuleLogic):
         self.interface.landmarkComboBox.clear()
         numOfFid = fidList.GetNumberOfMarkups()
         if numOfFid > 0:
-            for i in range(0, numOfFid):
+            for i in range(numOfFid):
                 ID = fidList.GetNthMarkupID(i)
                 if not landmarkDescription[ID]["midPoint"]["isMidPoint"]:
                     landmarkLabel = fidList.GetNthMarkupLabel(i)
@@ -809,7 +809,7 @@ class PickAndPaintLogic(ScriptedLoadableModuleLogic):
             connectedVerticesList, inputModelNodePolyData, indexClosestPoint)
         if distance > 1:
             for dist in range(1, int(distance)):
-                for i in range(0, connectedVerticesList.GetNumberOfIds()):
+                for i in range(connectedVerticesList.GetNumberOfIds()):
                     self.GetConnectedVertices(connectedVerticesList, inputModelNodePolyData,
                                               connectedVerticesList.GetId(i))
         return connectedVerticesList
@@ -821,11 +821,11 @@ class PickAndPaintLogic(ScriptedLoadableModuleLogic):
         # Get cells that vertex 'pointID' belongs to
         polyData.GetPointCells(pointID, cellList)
         numberOfIds = cellList.GetNumberOfIds()
-        for i in range(0, numberOfIds):
+        for i in range(numberOfIds):
             # Get points which compose all cells
             pointIdList = vtk.vtkIdList()
             polyData.GetCellPoints(cellList.GetId(i), pointIdList)
-            for j in range(0, pointIdList.GetNumberOfIds()):
+            for j in range(pointIdList.GetNumberOfIds()):
                 connectedVerticesIDList.InsertUniqueId(pointIdList.GetId(j))
         return connectedVerticesIDList
 
@@ -840,9 +840,9 @@ class PickAndPaintLogic(ScriptedLoadableModuleLogic):
             pointData.RemoveArray(arrayName)
         arrayToAdd = vtk.vtkDoubleArray()
         arrayToAdd.SetName(arrayName)
-        for i in range(0, inputModelNodePolydata.GetNumberOfPoints()):
+        for i in range(inputModelNodePolydata.GetNumberOfPoints()):
             arrayToAdd.InsertNextValue(0.0)
-        for i in range(0, numberofIds):
+        for i in range(numberofIds):
             arrayToAdd.SetValue(connectedIdList.GetId(i), 1.0)
         lut = vtk.vtkLookupTable()
         tableSize = 2
@@ -886,7 +886,7 @@ class PickAndPaintLogic(ScriptedLoadableModuleLogic):
                                     hardenModel.GetPolyData(),
                                     activeLandmarkState["projection"]["closestPointIndex"],
                                     activeLandmarkState["ROIradius"])
-            for j in range(0, tempROIPointListID.GetNumberOfIds()):
+            for j in range(tempROIPointListID.GetNumberOfIds()):
                 ROIPointListID.InsertUniqueId(tempROIPointListID.GetId(j))
         listID = ROIPointListID
         self.addArrayFromIdList(listID, connectedModel, arrayName)
@@ -955,7 +955,7 @@ class PickAndPaintLogic(ScriptedLoadableModuleLogic):
                                     hardenModel.GetPolyData(),
                                     indexClosestPoint,
                                     activeLandmarkState["ROIradius"])
-            for j in range(0, tempROIPointListID.GetNumberOfIds()):
+            for j in range(tempROIPointListID.GetNumberOfIds()):
                 ROIPointListID.InsertUniqueId(tempROIPointListID.GetId(j))
         listID = ROIPointListID
         self.addArrayFromIdList(listID, modelToPropagate, arrayName)
@@ -1039,7 +1039,7 @@ class PickAndPaintTest(ScriptedLoadableModuleTest):
         listCoordinates.append([0.0, 0.0, -100.0])
         closestPointIndexList = [9, 35, 1]
         coord = [-1, -1, -1]
-        for i in range(0, slicer.mrmlScene.GetNodeByID(markupsLogic.GetActiveListID()).GetNumberOfFiducials()):
+        for i in range(slicer.mrmlScene.GetNodeByID(markupsLogic.GetActiveListID()).GetNumberOfFiducials()):
             logic.replaceLandmark(polyData, slicer.mrmlScene.GetNodeByID(markupsLogic.GetActiveListID()),
                                   i,
                                   closestPointIndexList[i])
@@ -1065,7 +1065,7 @@ class PickAndPaintTest(ScriptedLoadableModuleTest):
             [1, 7, 13, 19, 25, 31, 37, 43, 49, 6, 48, 12, 18, 24, 30, 36, 42, 5, 47, 41, 11, 17, 23, 29, 35])
         connectedVerticesTestedList = list()
 
-        for i in range(0, 3):
+        for i in range(3):
             inter = vtk.vtkIdList()
             logic.defineNeighbor(inter,
                                  polyData,
@@ -1073,7 +1073,7 @@ class PickAndPaintTest(ScriptedLoadableModuleTest):
                                  i + 1)
             connectedVerticesTestedList.append(inter)
             list1 = list()
-            for j in range(0, connectedVerticesTestedList[i].GetNumberOfIds()):
+            for j in range(connectedVerticesTestedList[i].GetNumberOfIds()):
                 list1.append(int(connectedVerticesTestedList[i].GetId(j)))
             connectedVerticesTestedList[i] = list1
             if connectedVerticesTestedList[i] != connectedVerticesReferenceList[i]:
@@ -1088,7 +1088,7 @@ class PickAndPaintTest(ScriptedLoadableModuleTest):
         sphereModel = self.defineSphere()
         polyData = sphereModel.GetPolyData()
         closestPointIndexList = [9, 35, 1]
-        for i in range(0, 3):
+        for i in range(3):
             inter = vtk.vtkIdList()
             logic.defineNeighbor(
                 inter, polyData, closestPointIndexList[i], i + 1)
