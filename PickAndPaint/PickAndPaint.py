@@ -26,11 +26,15 @@ class PickAndPaint(ScriptedLoadableModule):
             'James Hoctor (Kitware Inc.)',
         ]
         parent.helpText = """
-        Pick 'n Paint tool allows users to select ROIs on a reference model and to propagate it over different time point models.
+        The Pick 'n Paint tool allows users to select ROIs on a
+        reference model and to propagate them over different time point
+        models.
         """
         parent.acknowledgementText = """
-        This work was supported by the National Institues of Dental and Craniofacial Research and Biomedical Imaging and
-        Bioengineering of the National Institutes of Health under Award Number R01DE024450
+        This work was supported by the National Institute of Dental and
+        Craniofacial Research and the National Institute of Biomedical
+        Imaging and Bioengineering of the National Institutes of Health
+        under Award Number R01DE024450.
         """
         self.parent = parent
 
