@@ -1,15 +1,17 @@
 from __future__ import print_function
 
-import vtk
-import qt
-import ctk
-import slicer
-import os
-from slicer.ScriptedLoadableModule import *
-import numpy
-import time
 import json
 import logging
+import os
+import time
+
+import ctk
+import numpy
+import qt
+import vtk
+
+import slicer
+from slicer.ScriptedLoadableModule import *
 
 
 class PickAndPaint(ScriptedLoadableModule):
