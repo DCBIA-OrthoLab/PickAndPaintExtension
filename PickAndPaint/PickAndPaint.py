@@ -60,9 +60,9 @@ class PickAndPaintWidget(ScriptedLoadableModuleWidget):
         self.widget = widget
         self.layout.addWidget(widget)
 
-        # this atribute is useful for Longitudinal quantification extension
+        # this attribute is useful for Longitudinal quantification extension
         self.inputModelLabel = self.logic.get("inputModelLabel")
-        # this atribute is useful for Longitudinal quantification extension
+        # this attribute is useful for Longitudinal quantification extension
         self.inputLandmarksLabel = self.logic.get("inputLandmarksLabel")
         self.inputModelSelector = self.logic.get("inputModelSelector")
         self.inputModelSelector.setMRMLScene(slicer.mrmlScene)
@@ -650,7 +650,7 @@ class PickAndPaintLogic(ScriptedLoadableModuleLogic):
         landmarkDescription = self.decodeJSON(
             obj.GetAttribute("landmarkDescription"))
         numOfMarkups = obj.GetNumberOfMarkups()
-        # because everytime a new node is added, its index is the last one on the list:
+        # because every time a new node is added, its index is the last one on the list:
         markupID = obj.GetNthMarkupID(numOfMarkups - 1)
         landmarkDescription[markupID] = dict()
         landmarkLabel = obj.GetNthMarkupLabel(numOfMarkups - 1)
