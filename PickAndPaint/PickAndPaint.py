@@ -116,6 +116,9 @@ class PickAndPaintWidget(ScriptedLoadableModuleWidget):
             slicer.mrmlScene.EndCloseEvent, self.onCloseScene)
 
     def enter(self):
+        logging.debug('------- in function: enter --------')
+        # See Slicer/Base/QTGUI/qSlicerAbstractModuleWidget.h for an
+        # explanation of when this is called.
         model = self.inputModelSelector.currentNode()
         fidlist = self.inputLandmarksSelector.currentNode()
 
