@@ -130,10 +130,10 @@ class PickAndPaintWidget(ScriptedLoadableModuleWidget):
         self.UpdateInterface()
 
         # Checking the names of the fiducials
-        list = slicer.mrmlScene.GetNodesByClass("vtkMRMLMarkupsFiducialNode")
-        end = list.GetNumberOfItems()
+        list_ = slicer.mrmlScene.GetNodesByClass("vtkMRMLMarkupsFiducialNode")
+        end = list_.GetNumberOfItems()
         for i in range(end):
-            fidList = list.GetItemAsObject(i)
+            fidList = list_.GetItemAsObject(i)
             landmarkDescription = self.logic.decodeJSON(
                 fidList.GetAttribute("landmarkDescription"))
             if landmarkDescription:
@@ -145,10 +145,10 @@ class PickAndPaintWidget(ScriptedLoadableModuleWidget):
                                      self.logic.encodeJSON(landmarkDescription))
 
     def onCloseScene(self, obj, event):
-        list = slicer.mrmlScene.GetNodesByClass("vtkMRMLModelNode")
-        end = list.GetNumberOfItems()
+        list_ = slicer.mrmlScene.GetNodesByClass("vtkMRMLModelNode")
+        end = list_.GetNumberOfItems()
         for i in range(end):
-            model = list.GetItemAsObject(i)
+            model = list_.GetItemAsObject(i)
             hardenModel = slicer.mrmlScene.GetNodesByName(
                 model.GetName()).GetItemAsObject(0)
             slicer.mrmlScene.RemoveNode(hardenModel)
@@ -404,11 +404,11 @@ class PickAndPaintLogic(ScriptedLoadableModuleLogic):
         logging.debug("UpdateThreeDView")
         active = self.selectedFidList
         # deactivate all landmarks
-        list = slicer.mrmlScene.GetNodesByClass("vtkMRMLMarkupsFiducialNode")
-        end = list.GetNumberOfItems()
+        list_ = slicer.mrmlScene.GetNodesByClass("vtkMRMLMarkupsFiducialNode")
+        end = list_.GetNumberOfItems()
         selectedFidReflID = self.findIDFromLabel(active, landmarkLabel)
         for i in range(end):
-            fidList = list.GetItemAsObject(i)
+            fidList = list_.GetItemAsObject(i)
             landmarkDescription = self.decodeJSON(
                 fidList.GetAttribute("landmarkDescription"))
             if not landmarkDescription:
@@ -449,11 +449,11 @@ class PickAndPaintLogic(ScriptedLoadableModuleLogic):
         hardenModel = self.createIntermediateHardenModel(obj)
         obj.SetAttribute("hardenModelID", hardenModel.GetID())
         # for each fiducial list
-        list = slicer.mrmlScene.GetNodesByClass("vtkMRMLMarkupsFiducialNode")
-        end = list.GetNumberOfItems()
+        list_ = slicer.mrmlScene.GetNodesByClass("vtkMRMLMarkupsFiducialNode")
+        end = list_.GetNumberOfItems()
         for i in range(end):
             # If landmarks are projected on the modified model
-            fidList = list.GetItemAsObject(i)
+            fidList = list_.GetItemAsObject(i)
             if fidList.GetAttribute("connectedModelID"):
                 if fidList.GetAttribute("connectedModelID") == obj.GetID():
                     # replace the harden model with the new one
