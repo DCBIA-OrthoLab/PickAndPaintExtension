@@ -566,7 +566,7 @@ class PickAndPaintLogic(ScriptedLoadableModuleLogic):
             "planeDescription", self.encodeJSON(planeDescription))
         landmarks.SetAttribute("isClean", self.encodeJSON({"isClean": False}))
         landmarks.SetAttribute("lastTransformID", None)
-        landmarks.SetAttribute("arrayName", model.GetName() + "_ROI")
+        landmarks.SetAttribute("arrayName", f'{model.GetName()}_{landmarks.GetName()}_ROI')
 
     def changementOfConnectedModel(self, landmarks, model, onSurface):
         landmarks.SetAttribute("connectedModelID", model.GetID())
