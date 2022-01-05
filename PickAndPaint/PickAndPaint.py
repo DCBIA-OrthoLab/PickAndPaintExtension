@@ -340,7 +340,6 @@ class PickAndPaintWidget(ScriptedLoadableModuleWidget):
         hardenModel = self.logic.createIntermediateHardenModel(model)
         model.SetAttribute("hardenModelID", hardenModel.GetID())
         fidList = self.inputLandmarksSelector.currentNode()
-        arrayName = fidList.GetAttribute("arrayName")
 
         decoded_json = self.logic.decodeJSON(
             fidList.GetAttribute("modelToPropList"))
@@ -368,7 +367,7 @@ class PickAndPaintWidget(ScriptedLoadableModuleWidget):
                 fidList.SetAttribute("typeOfPropagation",
                                      "correspondentShapes")
                 self.logic.propagateCorrespondent(
-                    model, modelToPropagate, arrayName)
+                    fidList, model, modelToPropagate)
             else:
                 fidList.SetAttribute("typeOfPropagation",
                                      "nonCorrespondentShapes")
@@ -377,6 +376,8 @@ class PickAndPaintWidget(ScriptedLoadableModuleWidget):
 
 
 class PickAndPaintLogic(ScriptedLoadableModuleLogic):
+    ROI_ARRAY_NAME = '{0}_{1}_ROI'
+
     def __init__(self, interface):
         self.selectedModel = None
         self.selectedFidList = None
@@ -566,7 +567,8 @@ class PickAndPaintLogic(ScriptedLoadableModuleLogic):
             "planeDescription", self.encodeJSON(planeDescription))
         landmarks.SetAttribute("isClean", self.encodeJSON({"isClean": False}))
         landmarks.SetAttribute("lastTransformID", None)
-        landmarks.SetAttribute("arrayName", f'{model.GetName()}_{landmarks.GetName()}_ROI')
+        landmarks.SetAttribute("arrayName", self.ROI_ARRAY_NAME.format(model.GetName(), landmarks.GetName()))
+        landmarks.SetAttribute("arrayPartNames", self.encodeJSON([]))
 
     def changementOfConnectedModel(self, landmarks, model, onSurface):
         landmarks.SetAttribute("connectedModelID", model.GetID())
@@ -888,16 +890,29 @@ class PickAndPaintLogic(ScriptedLoadableModuleLogic):
         landmarkDescription = self.decodeJSON(
             fidList.GetAttribute("landmarkDescription"))
         arrayName = fidList.GetAttribute("arrayName")
+        arrayPartNames = set()
+
         ROIPointListID = vtk.vtkIdList()
         for key, activeLandmarkState in landmarkDescription.items():
-            tempROIPointListID = vtk.vtkIdList()
+            currentROIPointListID = vtk.vtkIdList()
+            currentArrayPartName = self.ROI_ARRAY_NAME.format(
+                connectedModel.GetName(),
+                activeLandmarkState['landmarkLabel'],
+            )
             if activeLandmarkState["ROIradius"] != 0:
-                self.defineNeighbor(tempROIPointListID,
+                self.defineNeighbor(currentROIPointListID,
                                     hardenModel.GetPolyData(),
                                     activeLandmarkState["projection"]["closestPointIndex"],
                                     activeLandmarkState["ROIradius"])
-            for j in range(tempROIPointListID.GetNumberOfIds()):
-                ROIPointListID.InsertUniqueId(tempROIPointListID.GetId(j))
+                self.addArrayFromIdList(currentROIPointListID,
+                                        connectedModel,
+                                        currentArrayPartName)
+                arrayPartNames.add(currentArrayPartName)
+            for j in range(currentROIPointListID.GetNumberOfIds()):
+                ROIPointListID.InsertUniqueId(currentROIPointListID.GetId(j))
+
+        fidList.SetAttribute("arrayPartNames", self.encodeJSON(list(arrayPartNames)))
+
         listID = ROIPointListID
         self.addArrayFromIdList(listID, connectedModel, arrayName)
         self.displayROI(connectedModel, arrayName)
@@ -933,40 +948,55 @@ class PickAndPaintLogic(ScriptedLoadableModuleLogic):
                                      self.encodeJSON(landmarkDescription))
             fidList.SetAttribute("isClean", self.encodeJSON({"isClean": True}))
 
-    def propagateCorrespondent(self, referenceInputModel, propagatedInputModel, arrayName):
+    def propagateCorrespondent(self, fidList, referenceInputModel, propagatedInputModel):
+        arrayName = fidList.GetAttribute("arrayName")
+        arrayPartNames = self.decodeJSON(fidList.GetAttribute("arrayPartNames"))
+
         referencePointData = referenceInputModel.GetPolyData().GetPointData()
         propagatedPointData = propagatedInputModel.GetPolyData().GetPointData()
-        arrayToPropagate = referencePointData.GetArray(arrayName)
-        if arrayToPropagate:
 
-            if propagatedPointData.GetArray(arrayName):  # Array already exists
-                propagatedPointData.RemoveArray(arrayName)
-            propagatedPointData.AddArray(arrayToPropagate)
-            self.displayROI(propagatedInputModel, arrayName)
-        else:
-            logging.warning(" NO ROI ARRAY FOUND. PLEASE DEFINE ONE BEFORE.")
-            return
+        for name in [arrayName, *arrayPartNames]:
+            arrayToPropagate = referencePointData.GetArray(name)
+            if arrayToPropagate:
+                if propagatedPointData.GetArray(name):  # Array already exists
+                    propagatedPointData.RemoveArray(name)
+                propagatedPointData.AddArray(arrayToPropagate)
+                self.displayROI(propagatedInputModel, name)
+            else:
+                logging.warning(" NO ROI ARRAY %s FOUND. PLEASE DEFINE ONE BEFORE.", name)
+                continue
 
     def propagateNonCorrespondent(self, fidList, modelToPropagate):
         logging.debug(modelToPropagate.GetAttribute("hardenModelID"))
+        connectedModel = slicer.app.mrmlScene().GetNodeByID(
+            fidList.GetAttribute("connectedModel"))
         hardenModel = slicer.app.mrmlScene().GetNodeByID(
             modelToPropagate.GetAttribute("hardenModelID"))
         landmarkDescription = self.decodeJSON(
             fidList.GetAttribute("landmarkDescription"))
         arrayName = fidList.GetAttribute("arrayName")
+
         ROIPointListID = vtk.vtkIdList()
         for key, activeLandmarkState in landmarkDescription.items():
-            tempROIPointListID = vtk.vtkIdList()
+            currentROIPointListID = vtk.vtkIdList()
+            currentArrayPartName = self.ROI_ARRAY_NAME.format(
+                connectedModel.GetName(), activeLandmarkState['landmarkLabel']
+            )
             markupsIndex = fidList.GetNthControlPointIndexByID(key)
             indexClosestPoint = self.getClosestPointIndex(
-                fidList, modelToPropagate.GetPolyData(), markupsIndex)
+                fidList, modelToPropagate.GetPolyData(), markupsIndex
+            )
             if activeLandmarkState["ROIradius"] != 0:
-                self.defineNeighbor(tempROIPointListID,
-                                    hardenModel.GetPolyData(),
-                                    indexClosestPoint,
-                                    activeLandmarkState["ROIradius"])
-            for j in range(tempROIPointListID.GetNumberOfIds()):
-                ROIPointListID.InsertUniqueId(tempROIPointListID.GetId(j))
+                self.defineNeighbor(
+                    currentROIPointListID,
+                    hardenModel.GetPolyData(),
+                    indexClosestPoint,
+                    activeLandmarkState["ROIradius"]
+                )
+                self.addArrayFromIdList(currentROIPointListID, modelToPropagate, currentArrayPartName)
+            for j in range(currentROIPointListID.GetNumberOfIds()):
+                ROIPointListID.InsertUniqueId(currentROIPointListID.GetId(j))
+
         listID = ROIPointListID
         self.addArrayFromIdList(listID, modelToPropagate, arrayName)
         self.displayROI(modelToPropagate, arrayName)
